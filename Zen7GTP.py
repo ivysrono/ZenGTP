@@ -8,10 +8,8 @@ import wx, sgf
 
 ##################################################
 
-# name = os.path.basename(sys.argv[0]).split(".")[0].split("-")[0]
 name = "Zen7GTP"
-version = "0.1.1"
-# program = (os.path.basename(sys.argv[0]) + " " + " ".join(sys.argv[1:])).strip()
+version = "0.2"
 program = name + "-" + version
 logfile = ""
 threads = int(os.environ["NUMBER_OF_PROCESSORS"])
@@ -320,17 +318,17 @@ if os.path.exists(dirname + "book.dat"):
             m = move.split()
             if g[0].isdigit():
                 for mm in m:
-                    if book.has_key(game):
+                    if game in book:
                         if not mm in book[game]:
                             book[game].append(mm)
                     else:
                         book[game] = [mm]
             else:
-                if prefix.has_key(g[0]):
+                if g[0] in prefix:
                     for g0 in prefix[g[0]]:
                         g1 = ("%s %s" % (g0, " ".join(g[1:]))).strip()
                         for mm in m:
-                            if book.has_key(g1):
+                            if g1 in book:
                                 if not mm in book[g1]:
                                     book[g1].append(mm)
                             else:
@@ -344,16 +342,16 @@ if os.path.exists(dirname + "book.dat"):
             continue
         g = game.split()
         if g[0].isdigit():
-            if prefix.has_key(ngame):
+            if ngame in prefix:
                 if not game in prefix[ngame]:
                     prefix[ngame].append(game)
             else:
                 prefix[ngame] = [game]
         else:
-            if prefix.has_key(g[0]):
+            if g[0] in prefix:
                 for g0 in prefix[g[0]]:
                     g1 = ("%s %s" % (g0, " ".join(g[1:]))).strip()
-                    if prefix.has_key(ngame):
+                    if ngame in prefix:
                         if not g1 in prefix[ngame]:
                             prefix[ngame].append(g1)
                     else:
@@ -377,23 +375,23 @@ def variations(gt0, h0, c0, cc, size):
     c1 = c0
     isover1 = False
     for n in gt0.nodes:
-        if n.properties.has_key(c1):
+        if c1 in n.properties:
             m = sm2str(n.properties[c1][0], size)
-            if n.properties.has_key("N"):
+            if "N" in n.properties:
                 mw = "_".join([m] + n.properties["N"][0].split())
             else:
                 mw = m
             if (
                 c1 == cc
-                and (not n.properties.has_key("DO"))
+                and ("DO" not in n.properties)
                 and (
                     not (
-                        n.properties.has_key("BM")
+                        "BM" in n.properties
                         and n.properties["BM"][0] in ["1", "2"]
                     )
                 )
             ):
-                if booksgf.has_key(h1):
+                if h1 in booksgf:
                     if not mw in booksgf[h1]:
                         booksgf[h1].append(mw)
                 else:
@@ -401,7 +399,7 @@ def variations(gt0, h0, c0, cc, size):
             h1 = "%s %s" % (h1, m)
             c1 = "B" if c1 == "W" else "W"
         else:
-            if n.properties.has_key("B" if c1 == "W" else "W"):
+            if ("B" if c1 == "W" else "W") in n.properties:
                 isover1 = True
                 break
     if not isover1:
@@ -426,14 +424,14 @@ if os.path.exists(dirname + "book_19B.sgf"):
     c = "B"
     isover = False
     for n in gt.nodes[1:]:
-        if n.properties.has_key(c):
+        if c in n.properties:
             m = sm2str(n.properties[c][0], 19)
-            if n.properties.has_key("N"):
+            if "N" in n.properties:
                 mw = "_".join([m] + n.properties["N"][0].split())
             else:
                 mw = m
-            if c == "B" and (not n.properties.has_key("DO")):
-                if booksgf.has_key(h):
+            if c == "B" and ("DO" not in n.properties):
+                if h in booksgf:
                     if not mw in booksgf[h]:
                         booksgf[h].append(mw)
                 else:
@@ -441,7 +439,7 @@ if os.path.exists(dirname + "book_19B.sgf"):
             h = "%s %s" % (h, m)
             c = "B" if c == "W" else "W"
         else:
-            if n.properties.has_key("B" if c == "W" else "W"):
+            if ("B" if c == "W" else "W") in n.properties:
                 isover = True
                 break
     if not isover:
@@ -465,14 +463,14 @@ if os.path.exists(dirname + "book_19W.sgf"):
     c = "B"
     isover = False
     for n in gt.nodes[1:]:
-        if n.properties.has_key(c):
+        if c in n.properties:
             m = sm2str(n.properties[c][0], 19)
-            if n.properties.has_key("N"):
+            if "N" in n.properties:
                 mw = "_".join([m] + n.properties["N"][0].split())
             else:
                 mw = m
-            if c == "W" and (not n.properties.has_key("DO")):
-                if booksgf.has_key(h):
+            if c == "W" and ("DO" not in n.properties):
+                if h in booksgf:
                     if not mw in booksgf[h]:
                         booksgf[h].append(mw)
                 else:
@@ -480,7 +478,7 @@ if os.path.exists(dirname + "book_19W.sgf"):
             h = "%s %s" % (h, m)
             c = "B" if c == "W" else "W"
         else:
-            if n.properties.has_key("B" if c == "W" else "W"):
+            if ("B" if c == "W" else "W") in n.properties:
                 isover = True
                 break
     if not isover:
@@ -560,7 +558,7 @@ def zenGetPolicyKnowledge():
     while True:
         k2 = ((c_int * 19) * 19)()
         zen[10](k2)
-        if sum([k1[y][x] == k2[y][x] for y in xrange(19) for x in xrange(19)]) == 361:
+        if sum([k1[y][x] == k2[y][x] for y in range(19) for x in range(19)]) == 361:
             break
         k1 = k2
     return k1
@@ -582,7 +580,7 @@ def zenGetTopMoveInfo(n):
         topmoveinfo = []
         topmovexy = []
         topmovesump = 0
-        for i in xrange(5):
+        for i in range(5):
             x, y, p, w, s = (
                 c_int(0),
                 c_int(0),
@@ -593,7 +591,7 @@ def zenGetTopMoveInfo(n):
             zen[12](i, byref(x), byref(y), byref(p), byref(w), s, 99)
             if p.value > 0 and [x.value, y.value] not in topmovexy:
                 topmoveinfo.append(
-                    [x.value, y.value, p.value, w.value, s.value.rstrip(), 0]
+                    [x.value, y.value, p.value, w.value, s.value.decode().rstrip(), 0]
                 )
                 topmovexy.append([x.value, y.value])
                 topmovesump += p.value
@@ -628,7 +626,7 @@ def zenInitialize():
 
 def zenGetBookMove(moves1):
     mlist, mlistsgf = {}, {}
-    for n in xrange(8):
+    for n in range(8):
         tmoves = [transform(m, n) for m in moves1]
         if len(moves1) <= 2:
             games = [("%d %s" % (boardsize, " ".join(tmoves))).strip()]
@@ -705,21 +703,21 @@ def zenGetBookMove(moves1):
                 "%d %s" % (boardsize, " ".join(item + tmoves[6:])) for item in tmoves6
             ]
         for game in games:
-            if booksgf.has_key(game):
+            if game in booksgf:
                 for m in booksgf[game]:
                     lm = m.split("_")
                     m = transform(lm[0], -n)
-                    if not mlistsgf.has_key(m):
+                    if m not in mlistsgf:
                         mlistsgf[m] = []
                     for w in lm[1:]:
                         if w not in mlistsgf[m]:
                             mlistsgf[m].append(w)
         for game in games:
-            if book.has_key(game):
+            if game in book:
                 for m in book[game]:
                     lm = m.split("_")
                     m = transform(lm[0], -n)
-                    if not mlist.has_key(m):
+                    if m not in mlist:
                         mlist[m] = []
                     for w in lm[1:]:
                         if w not in mlist[m]:
@@ -785,7 +783,7 @@ def lzPlot2():
         + "\n".join(
             [
                 ("%d %.2f" % (i + 1, values[i]))
-                for i in xrange(len(moves))
+                for i in range(len(moves))
                 if values[i] >= 0
             ]
         )
@@ -801,8 +799,8 @@ def zenAntiMove(c, k):
         listctrl.InsertStringItem(0, "")
         points = [[], [], [], [], [], [], [], [], [], [], []]
         gfxcmd2 = "   gogui-gfx:\n"
-        for y in xrange(boardsize):
-            for x in xrange(boardsize):
+        for y in range(boardsize):
+            for x in range(boardsize):
                 if k[y][x] >= aparm[1]:
                     gfxcmd2 += "   LABEL %s %d\n" % (xy2str(x, y), k[y][x])
                 points[max(0, k[y][x]) / 100].append(xy2str(x, y))
@@ -816,7 +814,7 @@ def zenAntiMove(c, k):
                         int(12.8 * (10 - i)),
                         " ".join(points[i]),
                     )
-                    for i in xrange(1, 11)
+                    for i in range(1, 11)
                     if points[i]
                 ]
             )
@@ -833,8 +831,8 @@ def zenAntiMove(c, k):
     )
     xylist = [
         [x, y, k[y][x]]
-        for y in xrange(boardsize)
-        for x in xrange(boardsize)
+        for y in range(boardsize)
+        for x in range(boardsize)
         if k[y][x] >= aparm[1]
     ]
     xylist.sort(key=lambda item: -item[2])
@@ -898,7 +896,7 @@ def zenAntiMove(c, k):
                         sqB = amlist[-selected][5].split()[:nparm]
                     pvB = [
                         "%s %s" % (int2bw(2 - (c + i) % 2), sqB[i])
-                        for i in xrange(len(sqB))
+                        for i in range(len(sqB))
                     ]
                     if pvB != pvA:
                         if nparm > 1:
@@ -972,8 +970,8 @@ def zenGenMove(c, k, a):
         listctrl.InsertStringItem(0, "")
         points = [[], [], [], [], [], [], [], [], [], [], []]
         gfxcmd2 = "   gogui-gfx:\n"
-        for y in xrange(boardsize):
-            for x in xrange(boardsize):
+        for y in range(boardsize):
+            for x in range(boardsize):
                 if k[y][x] >= 100:
                     gfxcmd2 += "   LABEL %s %d\n" % (xy2str(x, y), k[y][x])
                 points[max(0, k[y][x]) / 100].append(xy2str(x, y))
@@ -987,7 +985,7 @@ def zenGenMove(c, k, a):
                         int(12.8 * (10 - i)),
                         " ".join(points[i]),
                     )
-                    for i in xrange(1, 11)
+                    for i in range(1, 11)
                     if points[i]
                 ]
             )
@@ -999,7 +997,7 @@ def zenGenMove(c, k, a):
 
         topB, incB = [], []
         xylistA = [itemA[0:2] for itemA in topA]
-        for n in xrange(5):
+        for n in range(5):
             x, y, p, w, s, e = zenGetTopMoveInfo(n)
             if p == 0:
                 break
@@ -1070,7 +1068,7 @@ def zenGenMove(c, k, a):
                 stopThinking2 = False
 
             if vparm:
-                for i in xrange(len(topA)):
+                for i in range(len(topA)):
                     itemA = topA[i]
                     itemB = topB[i]
                     if itemA != itemB:
@@ -1099,7 +1097,7 @@ def zenGenMove(c, k, a):
                                 listctrl.SetStringItem(
                                     i, 4, "%.3f" % (itemB[9] / 1000.0)
                                 )
-                for i in xrange(len(topA), len(topB)):
+                for i in range(len(topA), len(topB)):
                     itemB = topB[i]
                     listctrl.InsertStringItem(i, int2bw(c) + " " + itemB[4].split()[0])
                     listctrl.SetStringItem(i, 1, "%d %s" % (itemB[2], itemB[6]))
@@ -1122,7 +1120,7 @@ def zenGenMove(c, k, a):
                     sqB = topB[max(0, selected)][4].split()[:nparm]
                     pvB = [
                         "%s %s" % (int2bw(2 - (c + i) % 2), sqB[i])
-                        for i in xrange(len(sqB))
+                        for i in range(len(sqB))
                     ]
                     if nparm > 1:
                         gfxcmd = (
@@ -1361,11 +1359,11 @@ def variations2(gt0, c0):
     c1 = c0
     isover1 = False
     for n in gt0.nodes:
-        if n.properties.has_key(c1):
+        if c1 in n.properties:
             sgfmoves.append(sm2str(n.properties[c1][0], boardsize))
             c1 = "B" if c1 == "W" else "W"
         else:
-            if n.properties.has_key("B" if c1 == "W" else "W"):
+            if ("B" if c1 == "W" else "W") in n.properties:
                 isover1 = True
                 break
     if not isover1 and len(gt0.children) > 0:
@@ -1392,20 +1390,20 @@ def analysis_mode():
     sgffile.close()
     if len(gt.nodes) < 1:
         sys.exit()
-    if gt.nodes[0].properties.has_key("SZ"):
+    if "SZ" in gt.nodes[0].properties:
         boardsize = int(gt.nodes[0].properties["SZ"][0])
         zenSetBoardSize(boardsize)
-    if gt.nodes[0].properties.has_key("KM"):
+    if "KM" in gt.nodes[0].properties:
         komi[0] = float(gt.nodes[0].properties["KM"][0])
 
     c = "B"
     isover = False
     for n in gt.nodes[1:]:
-        if n.properties.has_key(c):
+        if c in n.properties:
             sgfmoves.append(sm2str(n.properties[c][0], boardsize))
             c = "B" if c == "W" else "W"
         else:
-            if n.properties.has_key("B" if c == "W" else "W"):
+            if ("B" if c == "W" else "W") in n.properties:
                 isover = True
                 break
     if not isover and len(gt.children) > 0:
@@ -1415,7 +1413,7 @@ def analysis_mode():
     sgfmod = ""
     sgfmod1 = ")"
 
-    for i in xrange(len(sgfmoves)):
+    for i in range(len(sgfmoves)):
         time0 = time.time()
         c = zenGetNextColor()
         sm = sgfmoves[i]
@@ -1612,7 +1610,7 @@ def analysis_mode():
 
         if (
             len(moves) < rparm[0]
-            or [1 for i in xrange(len(moves)) if i % 2 == 1 and moves[i] != "PASS"]
+            or [1 for i in range(len(moves)) if i % 2 == 1 and moves[i] != "PASS"]
             == []
         ):
             values.append(-1)
@@ -1674,7 +1672,7 @@ def analysis_mode():
 
         if len(moves) > 0 and len(moves) % Aparm[2] == 0:
             valueall = "C["
-            for i in xrange(len(moves)):
+            for i in range(len(moves)):
                 if values[i] < 0:
                     continue
                 valueall += "%d, %.1f\n" % (i + 1, values[i])
@@ -1743,7 +1741,7 @@ def analysis_mode():
                 sgfmod += "\n(;" + int2bw(c) + "[]DO[]"
                 sgfmod2 = "\n("
                 pv = top[0][4].split()[:nparm]
-                for i in xrange(len(pv)):
+                for i in range(len(pv)):
                     if pv[i] == "pass":
                         sgfmod2 += ";%s[]" % (int2bw(2 - (c + i) % 2))
                     else:
@@ -1786,7 +1784,7 @@ def analysis_mode():
                 )
                 sgfmod2 = "\n("
                 pv = top[0][4].split()[:nparm]
-                for i in xrange(len(pv)):
+                for i in range(len(pv)):
                     if pv[i] == "pass":
                         sgfmod2 += ";%s[]" % (int2bw(2 - (c + i) % 2))
                     else:
@@ -1808,7 +1806,7 @@ def analysis_mode():
             break
 
     valueall = "C["
-    for i in xrange(len(moves)):
+    for i in range(len(moves)):
         if values[i] < 0:
             continue
         valueall += "%d, %.1f\n" % (i + 1, values[i])
@@ -1822,7 +1820,7 @@ def analysis_mode():
     sgfout.close()
     output.close()
     if vparm == 3:
-        raw_input("Press Enter to exit. ")
+        input("Press Enter to exit. ")
     wx.Exit()
 
 
@@ -1834,7 +1832,7 @@ def gtp_mode():
     global afterbook, values
 
     while True:
-        cmd = raw_input("").lower().split()
+        cmd = input("").lower().split()
         time0 = time.time()
         stopThinking = True
         while isThinking:
@@ -2010,14 +2008,14 @@ def gtp_mode():
             k = zenGetPolicyKnowledge()
             if (
                 len(moves) < rparm[0]
-                or [1 for i in xrange(len(moves)) if i % 2 == 1 and moves[i] != "PASS"]
+                or [1 for i in range(len(moves)) if i % 2 == 1 and moves[i] != "PASS"]
                 == []
             ):
                 xx, yy = random.choice(
                     [
                         [x, y]
-                        for y in xrange(boardsize)
-                        for x in xrange(boardsize)
+                        for y in range(boardsize)
+                        for x in range(boardsize)
                         if k[y][x] >= rparm[1]
                     ]
                 )
@@ -2029,8 +2027,8 @@ def gtp_mode():
                 continue
             xylist = [
                 [x, y]
-                for y in xrange(boardsize)
-                for x in xrange(boardsize)
+                for y in range(boardsize)
+                for x in range(boardsize)
                 if k[y][x] >= qparm[1]
             ]
             if len(xylist) == 1:
@@ -2142,7 +2140,7 @@ def gtp_mode():
             cc = [0, 1] if len(cmd) == 1 else [1] if cmd[1] == "w" else [0]
             l = [
                 (str(boardsize) + " " + " ".join(moves[:i])).strip() + " | " + moves[i]
-                for i in xrange(len(moves))
+                for i in range(len(moves))
                 if i % 2 in cc and moves[i] != "PASS"
             ]
             reply("\n" + "\n".join(l) if l else "")
@@ -2165,8 +2163,8 @@ def gtp_mode():
             c, k = zenGetNextColor(), zenGetPolicyKnowledge()
             points = [[], [], [], [], [], [], [], [], [], [], []]
             s = ""
-            for y in xrange(boardsize):
-                for x in xrange(boardsize):
+            for y in range(boardsize):
+                for x in range(boardsize):
                     if k[y][x] >= 100:
                         s += "LABEL %s %d\n" % (xy2str(x, y), k[y][x])
                     points[max(0, k[y][x]) / 100].append(xy2str(x, y))
@@ -2182,7 +2180,7 @@ def gtp_mode():
                             int(12.8 * (10 - i)),
                             " ".join(points[i]),
                         )
-                        for i in xrange(1, 11)
+                        for i in range(1, 11)
                         if points[i]
                     ]
                 )
@@ -2197,8 +2195,8 @@ def gtp_mode():
                 [],
             )
             tsum = 0
-            for y in xrange(boardsize):
-                for x in xrange(boardsize):
+            for y in range(boardsize):
+                for x in range(boardsize):
                     tsum += t[y][x]
                     if t[y][x] >= 100:
                         pointsB[t[y][x] / 100 - 1].append(xy2str(x, y))
@@ -2207,7 +2205,7 @@ def gtp_mode():
                     else:
                         pointsM.append(xy2str(x, y))
             s = ""
-            for i in xrange(10):
+            for i in range(10):
                 if pointsB[i]:
                     s += "COLOR #%02X%02X%02X %s\n" % (
                         int(25.5 * (i + 1) + 12.8 * (9 - i)),
@@ -2236,8 +2234,8 @@ def gtp_mode():
             k = zenGetPolicyKnowledge()
             points = [[], [], [], [], [], [], [], [], [], [], []]
             labels = []
-            for y in xrange(boardsize):
-                for x in xrange(boardsize):
+            for y in range(boardsize):
+                for x in range(boardsize):
                     if k[y][x] > 200:
                         points[k[y][x] / 100].append(xy2str(x, y))
                         labels.append(xy2str(x, y))
@@ -2254,14 +2252,14 @@ def gtp_mode():
                             int(12.8 * (10 - i)),
                             " ".join(points[i]),
                         )
-                        for i in xrange(11)
+                        for i in range(11)
                         if points[i]
                     ]
                 )
             )
 
             if [
-                1 for i in xrange(len(moves)) if i % 2 == 1 and moves[i] != "PASS"
+                1 for i in range(len(moves)) if i % 2 == 1 and moves[i] != "PASS"
             ] == []:
                 continue
 

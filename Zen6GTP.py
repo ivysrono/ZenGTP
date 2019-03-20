@@ -4,8 +4,7 @@ import sys, os, time, getopt, random, subprocess, threading
 ##################################################
 
 name = "Zen6GTP"
-version = "0.4.3"
-# program = (os.path.basename(sys.argv[0]) + " " + " ".join(sys.argv[1:])).strip()
+version = "0.5"
 program = name + "-" + version
 logfile = ""
 threads = int(os.environ["NUMBER_OF_PROCESSORS"])
@@ -216,17 +215,17 @@ if os.path.exists(dirname + "book.dat"):
             m = move.split()
             if g[0].isdigit():
                 for mm in m:
-                    if book.has_key(game):
+                    if game in book:
                         if not mm in book[game]:
                             book[game].append(mm)
                     else:
                         book[game] = [mm]
             else:
-                if prefix.has_key(g[0]):
+                if g[0] in prefix:
                     for g0 in prefix[g[0]]:
                         g1 = ("%s %s" % (g0, " ".join(g[1:]))).strip()
                         for mm in m:
-                            if book.has_key(g1):
+                            if g1 in book:
                                 if not mm in book[g1]:
                                     book[g1].append(mm)
                             else:
@@ -240,16 +239,16 @@ if os.path.exists(dirname + "book.dat"):
             continue
         g = game.split()
         if g[0].isdigit():
-            if prefix.has_key(ngame):
+            if ngame in prefix:
                 if not game in prefix[ngame]:
                     prefix[ngame].append(game)
             else:
                 prefix[ngame] = [game]
         else:
-            if prefix.has_key(g[0]):
+            if g[0] in prefix:
                 for g0 in prefix[g[0]]:
                     g1 = ("%s %s" % (g0, " ".join(g[1:]))).strip()
-                    if prefix.has_key(ngame):
+                    if ngame in prefix:
                         if not g1 in prefix[ngame]:
                             prefix[ngame].append(g1)
                     else:
@@ -327,12 +326,12 @@ def zenGetTerritoryStatictics():
 def zenGetTopMoveInfo(n):
     x, y, p, w, s = c_int(0), c_int(0), c_int(0), c_float(0), create_string_buffer(100)
     zen[12](n, byref(x), byref(y), byref(p), byref(w), s, 99)
-    return x.value, y.value, p.value, w.value, s.value.rstrip()
+    return x.value, y.value, p.value, w.value, s.value.decode().rstrip()
 
 
 def zenGetNetWin(c, l):
     n, vn, vn2 = len(l), [], []
-    for i in xrange(n):
+    for i in range(n):
         x, y = -1, -1
         if l[i].lower() == "pass":
             zen[19](c)
@@ -343,8 +342,8 @@ def zenGetNetWin(c, l):
         if i % 2 == 0:
             kk = zenGetPriorKnowledge()
         else:
-            for yy in xrange(boardsize):
-                for xx in xrange(boardsize):
+            for yy in range(boardsize):
+                for xx in range(boardsize):
                     if (xx != x or yy != y) and kk[yy][xx] > 500:
                         leela.stdin.write("play %s %s\n" % (int2bw(c), xy2str(xx, yy)))
                         leela.stdin.flush()
@@ -372,7 +371,7 @@ def zenGetNetWin(c, l):
         c = 3 - c
     netwin = vn[-1]
     zen[35](n)
-    for i in xrange(n):
+    for i in range(n):
         leela.stdin.write("undo\n")
         leela.stdin.flush()
         leela.stdout.readline()
@@ -393,7 +392,7 @@ vncache = {}
 
 def zenGetNetWin2(c, m):
     global vncache
-    if vncache.has_key(m):
+    if m in vncache:
         return vncache[m]
     leela.stdin.write("play %s %s\n" % (int2bw(c), m))
     leela.stdin.flush()
@@ -457,7 +456,7 @@ def zenUndo(n):
     global moves
     moves = moves[:-n]
     zen[35](n)
-    for i in xrange(n):
+    for i in range(n):
         leela.stdin.write("undo\n")
         leela.stdin.flush()
         leela.stdout.readline()
@@ -488,7 +487,7 @@ def zenGenMove(c, k, a):
         time.sleep(1.0)
 
         xylistA, topB, incB = [itemA[0:2] for itemA in topA], [], []
-        for n in xrange(5):
+        for n in range(5):
             x, y, p, w, s = zenGetTopMoveInfo(n)
             w = max(0.0, min(1.0, w + dykomi / 150.0))
             if p == 0:
@@ -599,7 +598,7 @@ zenClearBoard()
 
 
 while True:
-    cmd = raw_input("").lower().split()
+    cmd = input("").lower().split()
     time0 = time.time()
     stopThinking = True
     while isThinking:
@@ -715,11 +714,11 @@ while True:
             log(int2bw(c) + " pass;")
             c = 3 - c
         mlist = []
-        for n in xrange(8):
+        for n in range(8):
             game = (
                 str(boardsize) + " " + " ".join([transform(m, n) for m in moves])
             ).strip()
-            if book.has_key(game):
+            if game in book:
                 for m in book[game]:
                     m = transform(m, -n)
                     x, y = str2xy(m)
@@ -750,8 +749,8 @@ while True:
             continue
         xylist = [
             [x, y]
-            for y in xrange(boardsize)
-            for x in xrange(boardsize)
+            for y in range(boardsize)
+            for x in range(boardsize)
             if k[y][x] >= qparm
         ]
         if len(xylist) == 1:
@@ -832,7 +831,7 @@ while True:
         cc = [0, 1] if len(cmd) == 1 else [1] if cmd[1] == "w" else [0]
         l = [
             (str(boardsize) + " " + " ".join(moves[:i])).strip() + " | " + moves[i]
-            for i in xrange(len(moves))
+            for i in range(len(moves))
             if i % 2 in cc and moves[i] != "PASS"
         ]
         reply("\n" + "\n".join(l) if l else "")
@@ -855,8 +854,8 @@ while True:
         c, k = zenGetNextColor(), zenGetPriorKnowledge()
         points = [[], [], [], [], [], [], [], [], [], [], []]
         values = []
-        for y in xrange(boardsize):
-            for x in xrange(boardsize):
+        for y in range(boardsize):
+            for x in range(boardsize):
                 points[max(0, k[y][x]) / 100].append(xy2str(x, y))
                 if k[y][x] > 200:
                     leela.stdin.write("play %s %s\n" % (int2bw(c), xy2str(x, y)))
@@ -884,7 +883,7 @@ while True:
                         int(12.8 * (10 - i)),
                         " ".join(points[i]),
                     )
-                    for i in xrange(11)
+                    for i in range(11)
                     if points[i]
                 ]
             )
@@ -901,8 +900,8 @@ while True:
             [],
         )
         sum = 0
-        for y in xrange(boardsize):
-            for x in xrange(boardsize):
+        for y in range(boardsize):
+            for x in range(boardsize):
                 sum += t[y][x]
                 if t[y][x] >= 100:
                     pointsB[t[y][x] / 100 - 1].append(xy2str(x, y))
@@ -911,7 +910,7 @@ while True:
                 else:
                     pointsM.append(xy2str(x, y))
         s = ""
-        for i in xrange(10):
+        for i in range(10):
             if pointsB[i]:
                 s += "COLOR #%02X%02X%02X %s\n" % (
                     int(25.5 * (i + 1) + 12.8 * (9 - i)),
@@ -940,8 +939,8 @@ while True:
         k = zenGetPriorKnowledge()
         points = [[], [], [], [], [], [], [], [], [], [], []]
         labels = []
-        for y in xrange(boardsize):
-            for x in xrange(boardsize):
+        for y in range(boardsize):
+            for x in range(boardsize):
                 if k[y][x] > 200:
                     points[k[y][x] / 100].append(xy2str(x, y))
                     labels.append(xy2str(x, y))
@@ -956,7 +955,7 @@ while True:
                         int(12.8 * (10 - i)),
                         " ".join(points[i]),
                     )
-                    for i in xrange(11)
+                    for i in range(11)
                     if points[i]
                 ]
             )
