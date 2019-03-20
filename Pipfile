@@ -1,0 +1,16 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.doubanio.com/simple"
+verify_ssl = true
+
+[dev-packages]
+
+[packages]
+pyinstaller = "*"
+pywin32 = "*"
+wxpython = "*"
+sgf = "*"
+black = "*"
+
+[requires]
+python_version = "3.7"

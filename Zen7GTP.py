@@ -1,111 +1,36 @@
+from generalFunctions import *
 from ctypes import *
 import sys, os, time, getopt, random
 import subprocess, threading
 import win32api, win32process, win32con, win32gui
 import wx, sgf
 
-# pip install PyInstaller pywin32 wxPython sgf -i https://pypi.doubanio.com/simple
-
 ##################################################
 
-name = "Zen7GTP"
-version = "0.2"
-program = name + "-" + version
-logfile = ""
-threads = int(os.environ["NUMBER_OF_PROCESSORS"])
-boardsize = 19
-komi = [7.5, 50.0, 0.0]
-book = {}
+# 以下为 Zen7GTP 专用变量
 booksgf = {}
-prefix = {}
-moves = []
 values = []
 mainpv = []
-maxtime = 1000000000.0
-# Strength = [1000000000, 10000] # 原默认参数 = -S 10000+
-Strength = [10000, 1000000000]  #  新默认参数 = -S 10000
+Strength = [10000, 1000000000]  # 新默认参数 -S 10000；原默认参数为颠倒，即 -S 10000+
 strength = [1000000000, 1000000000, 10000]
-fparm = [3, 1.0]
-weight = [0.75, 0.75]
-qparm = [0, 0]
-Qparm = [1000000000, 1.0]
-rparm = [2, 500]
-bparm = [1000000000, 1000000000]
-xparm = [100, 0.1]
-Xparm = 1000000000
-gparm = [500, 0]
-pparm = 2
-uparm = 0
-vparm = 0  # 默认关闭控制台
-nparm = 10
+
 Aparm = [1, 1000000000, 1000000000]
 aparm = [0, 100]
+bparm = [1000000000, 1000000000]
+fparm = [3, 1.0]
+gparm = [500, 0]
+nparm = 10
+pparm = 2
+Qparm = [1000000000, 1.0]
+rparm = [2, 500]
+uparm = 0
+vparm = 0  # 默认关闭控制台
+Xparm = 1000000000
+xparm = [100, 0.1]
+
 human = False
 
-##################################################
-
-
-def reply(s):
-    sys.stdout.write("= " + s + "\n\n")
-    sys.stdout.flush()
-
-
-def show(s):
-    sys.stderr.write(s + "\n")
-    sys.stderr.flush()
-
-
-def log(s):
-    output.write("[%03d] %s\n" % (len(moves), s))
-    output.flush()
-
-
-def xy2str(x, y):
-    return "ABCDEFGHJKLMNOPQRSTUVWXYZ"[x] + str(boardsize - y)
-
-
-def str2xy(m):
-    return "ABCDEFGHJKLMNOPQRSTUVWXYZ".find(m[0].upper()), boardsize - int(m[1:])
-
-
-def bw2int(s):
-    return 1 if s in ["W", "w"] else 2
-
-
-def int2bw(c):
-    return "W" if c == 1 else "B"
-
-
-def transform(m, n):
-    if m == "PASS":
-        return "PASS"
-    x, y = str2xy(m)
-    if n == 0:
-        return m
-    if n == 1 or n == -1:
-        return xy2str(x, boardsize - 1 - y)
-    if n == 2 or n == -2:
-        return xy2str(boardsize - 1 - x, y)
-    if n == 3 or n == -3:
-        return xy2str(boardsize - 1 - x, boardsize - 1 - y)
-    if n == 4 or n == -4:
-        return xy2str(y, x)
-    if n == 5 or n == -6:
-        return xy2str(boardsize - 1 - y, x)
-    if n == 6 or n == -5:
-        return xy2str(y, boardsize - 1 - x)
-    if n == 7 or n == -7:
-        return xy2str(boardsize - 1 - y, boardsize - 1 - x)
-
-
-def help():
-    show("Allowed options:")
-    show(" -h [ --help ]".ljust(25) + "Show all allowed options.")
-    show(" -t [ --threads ] num".ljust(25) + "Set the number of threads to use.")
-    show(" -T [ --maxtime ] num".ljust(25) + "Set the max time for one move.")
-    show(" -S [ --strength ] num".ljust(25) + "Set the playing strength.")
-    show(" -l [ --logfile ] file".ljust(25) + "Set the log file.")
-    sys.exit()
+###############################################
 
 
 try:
@@ -275,9 +200,6 @@ for opt, arg in opts:
 if vparm == 0 or len(args) > 0:
     human = False
 
-dirname = os.path.dirname(sys.argv[0])
-dirname += "\\" if dirname and dirname[-1] != "\\" else ""
-
 if logfile == "":
     if os.path.exists(dirname + "logs"):
         if not os.path.isdir(dirname + "logs"):
@@ -296,76 +218,20 @@ except IOError:
 output.write("=== " + program + " ===\n\n")
 output.flush()
 
-if os.path.exists(dirname + "book.dat"):
-    try:
-        data = open(dirname + "book.dat", "r")
-    except IOError:
-        show("Failed to open the book file book.dat.")
-        sys.exit()
-    while True:
-        line = data.readline()
-        if line == "":
-            break
-        line = line.strip()
-        if line == "" or line[0] == "#":
-            continue
-        l = line.split("|")
-        if len(l) > 2:
-            continue
-        if len(l) == 2:
-            game, move = l[0].strip(), l[1].strip()
-            g = game.split()
-            m = move.split()
-            if g[0].isdigit():
-                for mm in m:
-                    if game in book:
-                        if not mm in book[game]:
-                            book[game].append(mm)
-                    else:
-                        book[game] = [mm]
-            else:
-                if g[0] in prefix:
-                    for g0 in prefix[g[0]]:
-                        g1 = ("%s %s" % (g0, " ".join(g[1:]))).strip()
-                        for mm in m:
-                            if g1 in book:
-                                if not mm in book[g1]:
-                                    book[g1].append(mm)
-                            else:
-                                book[g1] = [mm]
-            continue
-        l = line.split(":")
-        if len(l) != 2:
-            continue
-        ngame, game = l[0].strip(), l[1].strip()
-        if len(ngame.split()) > 1:
-            continue
-        g = game.split()
-        if g[0].isdigit():
-            if ngame in prefix:
-                if not game in prefix[ngame]:
-                    prefix[ngame].append(game)
-            else:
-                prefix[ngame] = [game]
-        else:
-            if g[0] in prefix:
-                for g0 in prefix[g[0]]:
-                    g1 = ("%s %s" % (g0, " ".join(g[1:]))).strip()
-                    if ngame in prefix:
-                        if not g1 in prefix[ngame]:
-                            prefix[ngame].append(g1)
-                    else:
-                        prefix[ngame] = [g1]
-    data.close()
+
+def log(s):
+    if logfile != "":
+        output.write(f"[{len(moves):03}] {s}\n")
+        output.flush()
+
+
+isBookDatExist(dirname)
 
 
 def sm2str(s, size):
     if not s:
         return "PASS"
-    return "%s%d" % (
-        "ABCDEFGHJKLMNOPQRST"["abcdefghijklmnopqrs".find(s[0])],
-        size - "abcdefghijklmnopqrs".find(s[1]),
-    )
+    return f"{'ABCDEFGHJKLMNOPQRST'['abcdefghijklmnopqrs'.find(s[0])]}{size - 'abcdefghijklmnopqrs'.find(s[1])}"
 
 
 def variations(gt0, h0, c0, cc, size):
@@ -384,19 +250,14 @@ def variations(gt0, h0, c0, cc, size):
             if (
                 c1 == cc
                 and ("DO" not in n.properties)
-                and (
-                    not (
-                        "BM" in n.properties
-                        and n.properties["BM"][0] in ["1", "2"]
-                    )
-                )
+                and (not ("BM" in n.properties and n.properties["BM"][0] in ["1", "2"]))
             ):
                 if h1 in booksgf:
                     if not mw in booksgf[h1]:
                         booksgf[h1].append(mw)
                 else:
                     booksgf[h1] = [mw]
-            h1 = "%s %s" % (h1, m)
+            h1 = f"{h1} {m}"
             c1 = "B" if c1 == "W" else "W"
         else:
             if ("B" if c1 == "W" else "W") in n.properties:
@@ -436,7 +297,7 @@ if os.path.exists(dirname + "book_19B.sgf"):
                         booksgf[h].append(mw)
                 else:
                     booksgf[h] = [mw]
-            h = "%s %s" % (h, m)
+            h = f"{h} {m}"
             c = "B" if c == "W" else "W"
         else:
             if ("B" if c == "W" else "W") in n.properties:
@@ -475,7 +336,7 @@ if os.path.exists(dirname + "book_19W.sgf"):
                         booksgf[h].append(mw)
                 else:
                     booksgf[h] = [mw]
-            h = "%s %s" % (h, m)
+            h = f"{h} {m}"
             c = "B" if c == "W" else "W"
         else:
             if ("B" if c == "W" else "W") in n.properties:
@@ -629,13 +490,13 @@ def zenGetBookMove(moves1):
     for n in range(8):
         tmoves = [transform(m, n) for m in moves1]
         if len(moves1) <= 2:
-            games = [("%d %s" % (boardsize, " ".join(tmoves))).strip()]
+            games = [(f"{boardsize} {' '.join(tmoves)}").strip()]
         elif len(moves1) == 3:
             tmoves3 = [
                 [tmoves[0], tmoves[1], tmoves[2]],
                 [tmoves[2], tmoves[1], tmoves[0]],
             ]
-            games = ["%d %s" % (boardsize, " ".join(item)) for item in tmoves3]
+            games = [f"{boardsize} {' '.join(item)}" for item in tmoves3]
         elif len(moves1) == 4:
             tmoves4 = [
                 [tmoves[0], tmoves[1], tmoves[2], tmoves[3]],
@@ -643,7 +504,7 @@ def zenGetBookMove(moves1):
                 [tmoves[2], tmoves[1], tmoves[0], tmoves[3]],
                 [tmoves[2], tmoves[3], tmoves[0], tmoves[1]],
             ]
-            games = ["%d %s" % (boardsize, " ".join(item)) for item in tmoves4]
+            games = [f"{boardsize} {' '.join(item)}" for item in tmoves4]
         elif len(moves1) == 5:
             tmoves5 = [
                 [tmoves[0], tmoves[1], tmoves[2], tmoves[3], tmoves[4]],
@@ -659,7 +520,7 @@ def zenGetBookMove(moves1):
                 [tmoves[2], tmoves[1], tmoves[4], tmoves[3], tmoves[0]],
                 [tmoves[2], tmoves[3], tmoves[4], tmoves[1], tmoves[0]],
             ]
-            games = ["%d %s" % (boardsize, " ".join(item)) for item in tmoves5]
+            games = [f"{boardsize} {' '.join(item)}" for item in tmoves5]
         else:
             tmoves6 = [
                 [tmoves[0], tmoves[1], tmoves[2], tmoves[3], tmoves[4], tmoves[5]],
@@ -699,9 +560,7 @@ def zenGetBookMove(moves1):
                 [tmoves[4], tmoves[5], tmoves[2], tmoves[1], tmoves[0], tmoves[3]],
                 [tmoves[4], tmoves[5], tmoves[2], tmoves[3], tmoves[0], tmoves[1]],
             ]
-            games = [
-                "%d %s" % (boardsize, " ".join(item + tmoves[6:])) for item in tmoves6
-            ]
+            games = [f"{boardsize} {' '.join(item + tmoves[6:])}" for item in tmoves6]
         for game in games:
             if game in booksgf:
                 for m in booksgf[game]:
@@ -764,11 +623,11 @@ def zenUndo(n):
 def zenPlot(data):
     gnuplot.stdin.write(
         "plot "
-        + ", ".join([('"-" title "%s"  with lines' % item[0]) for item in data])
+        + ", ".join([(f'"-" title "{item[0]}"  with lines') for item in data])
         + "\n"
         + "".join(
             [
-                "\n".join([("%s %s" % (xy[0], xy[1])) for xy in item[1:]]) + "\ne\n"
+                "\n".join([(f"{xy[0]} {xy[1]}") for xy in item[1:]]) + "\ne\n"
                 for item in data
             ]
         )
@@ -781,11 +640,7 @@ def lzPlot2():
         "plot "
         + '"-" title "" with linespoints\n'
         + "\n".join(
-            [
-                ("%d %.2f" % (i + 1, values[i]))
-                for i in range(len(moves))
-                if values[i] >= 0
-            ]
+            [(f"{i + 1} {values[i]:.2f}") for i in range(len(moves)) if values[i] >= 0]
         )
         + "\ne\n"
     )
@@ -794,7 +649,7 @@ def lzPlot2():
 
 def zenAntiMove(c, k):
     if vparm:
-        frame.SetTitle("* Move %d (%s)" % (len(moves) + 1, program))
+        frame.SetTitle(f"* Move {len(moves) + 1} ({program})")
         listctrl.DeleteAllItems()
         listctrl.InsertStringItem(0, "")
         points = [[], [], [], [], [], [], [], [], [], [], []]
@@ -802,18 +657,12 @@ def zenAntiMove(c, k):
         for y in range(boardsize):
             for x in range(boardsize):
                 if k[y][x] >= aparm[1]:
-                    gfxcmd2 += "   LABEL %s %d\n" % (xy2str(x, y), k[y][x])
+                    gfxcmd2 += f"   LABEL {xy2str(x, y)} {k[y][x]}\n"
                 points[max(0, k[y][x]) / 100].append(xy2str(x, y))
         gfxcmd2 += (
             "\n".join(
                 [
-                    "   COLOR #%02X%02X%02X %s"
-                    % (
-                        int(25.5 * (c - 1) * i + 12.8 * (10 - i)),
-                        int(25.5 * (2 - c) * i + 12.8 * (10 - i)),
-                        int(12.8 * (10 - i)),
-                        " ".join(points[i]),
-                    )
+                    f"   COLOR #{int(25.5 * (c - 1) * i + 12.8 * (10 - i)):02X}{int(25.5 * (2 - c) * i + 12.8 * (10 - i)):02X}{int(12.8 * (10 - i)):02X} {' '.join(points[i])}"
                     for i in range(1, 11)
                     if points[i]
                 ]
@@ -848,7 +697,7 @@ def zenAntiMove(c, k):
         if vparm:
             #            show('')
             listctrl.InsertStringItem(0, int2bw(c) + " " + m)
-            listctrl.SetStringItem(0, 4, "%.3f" % (k[y][x] / 1000.0))
+            listctrl.SetStringItem(0, 4, f"{k[y][x] / 1000.0:.3f}")
             listctrl.SetStringItem(0, 5, m)
         #            selected = listctrl.GetFirstSelected()
         #            if selected >= 0: listctrl.Select(selected + 1)
@@ -862,25 +711,17 @@ def zenAntiMove(c, k):
             s1 = m + " " + s1
             if vparm:
                 listctrl.SetStringItem(
-                    0, 1, "%d %s" % (p1, "+" if p1 > p0 and p1 <= aparm[0] else "=")
+                    0, 1, f"{p1} {'+' if p1 > p0 and p1 <= aparm[0] else '='}"
                 )
                 listctrl.SetStringItem(
                     0,
                     2,
-                    "%.2f %s"
-                    % (
-                        e1 * 100,
-                        "=" if p1 > aparm[0] or e1 == e0 else "+" if e1 > e0 else "-",
-                    ),
+                    f"{e1 * 100:.2f} {'=' if p1 > aparm[0] or e1 == e0 else '+' if e1 > e0 else '-'}",
                 )
                 listctrl.SetStringItem(
                     0,
                     3,
-                    "%.2f %s"
-                    % (
-                        w1 * 100,
-                        "=" if p1 > aparm[0] or w1 == w0 else "+" if w1 > w0 else "-",
-                    ),
+                    f"{w1 * 100:.2f} {'=' if p1 > aparm[0] or w1 == w0 else '+' if w1 > w0 else '-'}",
                 )
                 if s1 != s0:
                     listctrl.SetStringItem(0, 5, s1)
@@ -895,21 +736,15 @@ def zenAntiMove(c, k):
                     else:
                         sqB = amlist[-selected][5].split()[:nparm]
                     pvB = [
-                        "%s %s" % (int2bw(2 - (c + i) % 2), sqB[i])
-                        for i in range(len(sqB))
+                        f"{int2bw(2 - (c + i) % 2)} {sqB[i]}" for i in range(len(sqB))
                     ]
                     if pvB != pvA:
                         if nparm > 1:
                             show(
-                                "   gogui-gfx:\n   VAR %s\n   COLOR %s %s\n "
-                                % (
-                                    " ".join(pvB),
-                                    "#FF0000" if c == 2 else "#00FF00",
-                                    sqB[0],
-                                )
+                                f"   gogui-gfx:\n   VAR {' '.join(pvB)}\n   COLOR {'#FF0000' if c == 2 else '#00FF00'} {sqB[0]}\n "
                             )
                         else:
-                            show("   gogui-gfx: VAR %s\n " % (" ".join(pvB)))
+                            show(f"   gogui-gfx: VAR {' '.join(pvB)}\n ")
                 pvA = pvB
             p0, w0, s0, e0 = p1, w1, s1, e1
             if (
@@ -925,7 +760,7 @@ def zenAntiMove(c, k):
                 break
     amlist.sort(key=lambda item: -item[3])
     if vparm:
-        frame.SetTitle("Move %d (%s)" % (len(moves) + 1, program))
+        frame.SetTitle(f"Move {len(moves) + 1} ({program})")
 
     return amlist
 
@@ -963,9 +798,9 @@ def zenGenMove(c, k, a):
 
     if vparm:
         if sgfmove:
-            frame.SetTitle("* Move %d %s (%s)" % (len(moves) + 1, sgfmove, program))
+            frame.SetTitle(f"* Move {len(moves) + 1} {sgfmove} ({program})")
         else:
-            frame.SetTitle("* Move %d (%s)" % (len(moves) + 1, program))
+            frame.SetTitle(f"* Move {len(moves) + 1} ({program})")
         listctrl.DeleteAllItems()
         listctrl.InsertStringItem(0, "")
         points = [[], [], [], [], [], [], [], [], [], [], []]
@@ -973,18 +808,12 @@ def zenGenMove(c, k, a):
         for y in range(boardsize):
             for x in range(boardsize):
                 if k[y][x] >= 100:
-                    gfxcmd2 += "   LABEL %s %d\n" % (xy2str(x, y), k[y][x])
+                    gfxcmd2 += f"   LABEL {xy2str(x, y)} {k[y][x]}\n"
                 points[max(0, k[y][x]) / 100].append(xy2str(x, y))
         gfxcmd2 += (
             "\n".join(
                 [
-                    "   COLOR #%02X%02X%02X %s"
-                    % (
-                        int(25.5 * (c - 1) * i + 12.8 * (10 - i)),
-                        int(25.5 * (2 - c) * i + 12.8 * (10 - i)),
-                        int(12.8 * (10 - i)),
-                        " ".join(points[i]),
-                    )
+                    f"   COLOR #{int(25.5 * (c - 1) * i + 12.8 * (10 - i)):02X}{int(25.5 * (2 - c) * i + 12.8 * (10 - i)):02X}{int(12.8 * (10 - i)):02X} {' '.join(points[i])}"
                     for i in range(1, 11)
                     if points[i]
                 ]
@@ -1073,20 +902,20 @@ def zenGenMove(c, k, a):
                     itemB = topB[i]
                     if itemA != itemB:
                         if itemA[2] != itemB[2] or itemA[6] != itemB[6]:
-                            listctrl.SetStringItem(i, 1, "%d %s" % (itemB[2], itemB[6]))
-                        if "%.2f %s" % (itemA[5] * 100, itemA[8]) != "%.2f %s" % (
-                            itemB[5] * 100,
-                            itemB[8],
+                            listctrl.SetStringItem(i, 1, f"{itemB[2]} {itemB[6]}")
+                        if (
+                            f"{itemA[5] * 100:.2f} {itemA[8]}"
+                            != f"{itemB[5] * 100:.2f} {itemB[8]}"
                         ):
                             listctrl.SetStringItem(
-                                i, 2, "%.2f %s" % (itemB[5] * 100, itemB[8])
+                                i, 2, f"{itemB[5] * 100:.2f} {itemB[8]}"
                             )
-                        if "%.2f %s" % (itemA[3] * 100, itemA[7]) != "%.2f %s" % (
-                            itemB[3] * 100,
-                            itemB[7],
+                        if (
+                            f"{itemA[3] * 100:.2f} {itemA[7]}"
+                            != f"{itemB[3] * 100:.2f} {itemB[7]}"
                         ):
                             listctrl.SetStringItem(
-                                i, 3, "%.2f %s" % (itemB[3] * 100, itemB[7])
+                                i, 3, f"{itemB[3] * 100:.2f} {itemB[7]}"
                             )
                         if itemA[4] != itemB[4]:
                             listctrl.SetStringItem(i, 5, itemB[4])
@@ -1094,16 +923,14 @@ def zenGenMove(c, k, a):
                                 listctrl.SetStringItem(
                                     i, 0, int2bw(c) + " " + itemB[4].split()[0]
                                 )
-                                listctrl.SetStringItem(
-                                    i, 4, "%.3f" % (itemB[9] / 1000.0)
-                                )
+                                listctrl.SetStringItem(i, 4, f"{itemB[9] / 1000.0:.3f}")
                 for i in range(len(topA), len(topB)):
                     itemB = topB[i]
                     listctrl.InsertStringItem(i, int2bw(c) + " " + itemB[4].split()[0])
-                    listctrl.SetStringItem(i, 1, "%d %s" % (itemB[2], itemB[6]))
-                    listctrl.SetStringItem(i, 2, "%.2f %s" % (itemB[5] * 100, itemB[8]))
-                    listctrl.SetStringItem(i, 3, "%.2f %s" % (itemB[3] * 100, itemB[7]))
-                    listctrl.SetStringItem(i, 4, "%.3f" % (itemB[9] / 1000.0))
+                    listctrl.SetStringItem(i, 1, f"{itemB[2]} {itemB[6]}")
+                    listctrl.SetStringItem(i, 2, f"{itemB[5] * 100:.2f} {itemB[8]}")
+                    listctrl.SetStringItem(i, 3, f"{itemB[3] * 100:.2f} {itemB[7]}")
+                    listctrl.SetStringItem(i, 4, f"{itemB[9] / 1000.0:.3f}")
                     listctrl.SetStringItem(i, 5, itemB[4])
                 selected = listctrl.GetFirstSelected()
                 if (
@@ -1119,25 +946,19 @@ def zenGenMove(c, k, a):
                 if selected < len(topB):
                     sqB = topB[max(0, selected)][4].split()[:nparm]
                     pvB = [
-                        "%s %s" % (int2bw(2 - (c + i) % 2), sqB[i])
-                        for i in range(len(sqB))
+                        f"{int2bw(2 - (c + i) % 2)} {sqB[i]}" for i in range(len(sqB))
                     ]
                     if nparm > 1:
                         gfxcmd = (
                             (
-                                "   gogui-gfx:\n   VAR %s\n   COLOR %s %s\n \n"
-                                % (
-                                    " ".join(pvB),
-                                    "#FF0000" if c == 2 else "#00FF00",
-                                    sqB[0],
-                                )
+                                f"   gogui-gfx:\n   VAR {' '.join(pvB)}\n   COLOR {'#FF0000' if c == 2 else '#00FF00'} {sqB[0]}\n \n"
                             )
                             if pvB != pvA
                             else ""
                         )
                     else:
                         gfxcmd = (
-                            ("   gogui-gfx: VAR %s\n \n" % (" ".join(pvB)))
+                            (f"   gogui-gfx: VAR {' '.join(pvB)}\n \n")
                             if pvB != pvA
                             else ""
                         )
@@ -1148,22 +969,9 @@ def zenGenMove(c, k, a):
             show(
                 " \n"
                 + (gfxcmd if vparm and a == 0 and len(args) == 0 else "")
-                + "\n".join(
+                + "\n".join(  # GTP Shell
                     [
-                        " %s %s %s-> %8d [%s],%s [%s],%s [%s], %.3f, %s"
-                        % (
-                            "!" if itemB[4].split()[0] == sgfmove else " ",
-                            int2bw(c),
-                            itemB[4].split()[0].ljust(4),
-                            itemB[2],
-                            itemB[6],
-                            ("%.2f" % (itemB[5] * 100)).rjust(6),
-                            itemB[8],
-                            ("%.2f" % (itemB[3] * 100)).rjust(6),
-                            itemB[7],
-                            itemB[9] / 1000.0,
-                            itemB[4],
-                        )
+                        f" {'!' if itemB[4].split()[0] == sgfmove else ' '} {int2bw(c)} {itemB[4].split()[0]:<4}-> {itemB[2]:>8} [{itemB[6]}], {itemB[5]:>6.2%} [{itemB[8]}], {itemB[3]:>6.2%} [{itemB[7]}], {itemB[9] / 1000.0:.3f}, {itemB[4]}"
                         for itemB in topB
                     ]
                 )
@@ -1209,11 +1017,11 @@ def zenGenMove(c, k, a):
                 break
     if vparm:
         if minput:
-            frame.SetTitle("Move %d %s (%s)" % (len(moves) + 1, minput, program))
+            frame.SetTitle(f"Move {len(moves) + 1} {minput} ({program})")
         elif sgfmove:
-            frame.SetTitle("Move %d %s (%s)" % (len(moves) + 1, sgfmove, program))
+            frame.SetTitle(f"Move {len(moves) + 1} {sgfmove} ({program})")
         else:
-            frame.SetTitle("Move %s (%s)" % (len(moves) + 1, program))
+            frame.SetTitle(f"Move {len(moves) + 1} ({program})")
         if topA == []:
             listctrl.InsertStringItem(0, int2bw(c) + " " + "pass")
             #            listctrl.SetStringItem(0, 1, '? ?')
@@ -1224,10 +1032,8 @@ def zenGenMove(c, k, a):
     show(" ")
     if zenIsThinking() != -0x80000000:
         show(
-            "   Komi:       %.1f %s %.1f"
-            % (komi[0], "+" if dykomi * (2 * c - 3) >= 0 else "-", abs(dykomi))
+            f"   Komi:       {komi[0]:.1f} {'+' if dykomi * (2 * c - 3) >= 0 else '-'} {abs(dykomi):.1f}"
         )
-        #        show('   Prisoners:  Black %d, White %d' % (zenGetNumBlackPrisoners(), zenGetNumWhitePrisoners()))
         zenStopThinking()
         show(" ")
 
@@ -1283,9 +1089,9 @@ def zenOnKeyPress(event):
     else:
         return
     if minput:
-        frame.SetTitle("* Move %d %s (%s)" % (len(moves) + 1, minput, program))
+        frame.SetTitle(f"* Move {len(moves) + 1} {minput} ({program})")
     else:
-        frame.SetTitle("* Move %d (%s)" % (len(moves) + 1, program))
+        frame.SetTitle(f"* Move {len(moves) + 1} ({program})")
 
 
 zenInitialize()
@@ -1376,16 +1182,12 @@ def analysis_mode():
     try:
         sgffile = open(args[1], "r")
     except IOError:
-        show("Failed to open the sgf file %s." % args[1])
+        show(f"Failed to open the sgf file {args[1]}.")
         sys.exit()
-    #    try: sgfout = open(args[2], 'w')
-    #    except IOError:
-    #        show('Failed to open the sgf file %s.' % args[2])
-    #        sys.exit()
     try:
         gt = sgf.parse(sgffile.read())[0]
     except sgf.ParseException:
-        show("Failed to open the sgf file %s." % args[1])
+        show(f"Failed to open the sgf file {args[1]}.")
         sys.exit()
     sgffile.close()
     if len(gt.nodes) < 1:
@@ -1409,7 +1211,7 @@ def analysis_mode():
     if not isover and len(gt.children) > 0:
         variations2(gt.children[0], c)
 
-    sgfheader = "(;CA[gb2312]SZ[%d]KM[%.1f]GC[%s]" % (boardsize, komi[0], program)
+    sgfheader = f"(;CA[gb2312]SZ[{boardsize}]KM[{komi[0]:.1f}]GC[{program}]"
     sgfmod = ""
     sgfmod1 = ")"
 
@@ -1467,8 +1269,7 @@ def analysis_mode():
                             sgfmod += (
                                 ";"
                                 + int2bw(c)
-                                + "[]N[book %.1f]C[%.1f]"
-                                % (float(mlist[sm][0]), float(mlist[sm][0]))
+                                + f"[]N[book {float(mlist[sm][0]):.1f}]C[{float(mlist[sm][0]):.1f}]"
                             )
                         else:
                             sgfmod += ";" + int2bw(c) + "[]N[book]"
@@ -1478,19 +1279,9 @@ def analysis_mode():
                         sgfmod += "\n(;" + int2bw(c) + "[]DO[]"
                         x, y = str2xy(m)
                         if mlist[m]:
-                            sgfmod2 = "\n(;%s[%s%s]N[book %.1f]C[%.1f]" % (
-                                int2bw(c),
-                                "abcdefghijklmnopqrstuvwxyz"[x],
-                                "abcdefghijklmnopqrstuvwxyz"[y],
-                                float(mlist[m][0]),
-                                float(mlist[m][0]),
-                            )
+                            sgfmod2 = f"\n(;{int2bw(c)}[{'abcdefghijklmnopqrstuvwxyz'[x]}{'abcdefghijklmnopqrstuvwxyz'[y]}]N[book {float(mlist[m][0]):.1f}]C[{float(mlist[m][0]):.1f}]"
                         else:
-                            sgfmod2 = "\n(;%s[%s%s]N[book]" % (
-                                int2bw(c),
-                                "abcdefghijklmnopqrstuvwxyz"[x],
-                                "abcdefghijklmnopqrstuvwxyz"[y],
-                            )
+                            sgfmod2 = f"\n(;{int2bw(c)}[{'abcdefghijklmnopqrstuvwxyz'[x]}{'abcdefghijklmnopqrstuvwxyz'[y]}]N[book]"
                         c1 = 3 - c
                         moves1 = moves[:-1] + [m]
                         while True:
@@ -1501,19 +1292,9 @@ def analysis_mode():
                             m1 = random.choice(mlist10)
                             x, y = str2xy(m1)
                             if mlist1[m1]:
-                                sgfmod2 += ";%s[%s%s]N[book %.1f]C[%.1f]" % (
-                                    int2bw(c1),
-                                    "abcdefghijklmnopqrstuvwxyz"[x],
-                                    "abcdefghijklmnopqrstuvwxyz"[y],
-                                    float(mlist1[m1][0]),
-                                    float(mlist1[m1][0]),
-                                )
+                                sgfmod2 += f";{int2bw(c1)}[{'abcdefghijklmnopqrstuvwxyz'[x]}{'abcdefghijklmnopqrstuvwxyz'[y]}]N[book {float(mlist1[m1][0]):.1f}]C[{float(mlist1[m1][0]):.1f}]"
                             else:
-                                sgfmod2 += ";%s[%s%s]N[book]" % (
-                                    int2bw(c1),
-                                    "abcdefghijklmnopqrstuvwxyz"[x],
-                                    "abcdefghijklmnopqrstuvwxyz"[y],
-                                )
+                                sgfmod2 += f";{int2bw(c1)}[{'abcdefghijklmnopqrstuvwxyz'[x]}{'abcdefghijklmnopqrstuvwxyz'[y]}]N[book]"
                             c1 = 3 - c1
                             moves1.append(m1)
                         sgfmod2 += ")"
@@ -1541,8 +1322,7 @@ def analysis_mode():
                                 + "["
                                 + "abcdefghijklmnopqrstuvwxyz"[x]
                                 + "abcdefghijklmnopqrstuvwxyz"[y]
-                                + "]N[book %.1f]C[%.1f]"
-                                % (float(mlist[sm][0]), float(mlist[sm][0]))
+                                + f"]N[book {float(mlist[sm][0]):.1f}]C[{float(mlist[sm][0]):.1f}]"
                             )
                         else:
                             sgfmod += (
@@ -1566,19 +1346,9 @@ def analysis_mode():
                         )
                         x, y = str2xy(m)
                         if mlist[m]:
-                            sgfmod2 = "\n(;%s[%s%s]N[book %.1f]C[%.1f]" % (
-                                int2bw(c),
-                                "abcdefghijklmnopqrstuvwxyz"[x],
-                                "abcdefghijklmnopqrstuvwxyz"[y],
-                                float(mlist[m][0]),
-                                float(mlist[m][0]),
-                            )
+                            sgfmod2 = f"\n(;{int2bw(c)}[{'abcdefghijklmnopqrstuvwxyz'[x]}{'abcdefghijklmnopqrstuvwxyz'[y]}]N[book {float(mlist[m][0]):.1f}]C[{float(mlist[m][0]):.1f}]"
                         else:
-                            sgfmod2 = "\n(;%s[%s%s]N[book]" % (
-                                int2bw(c),
-                                "abcdefghijklmnopqrstuvwxyz"[x],
-                                "abcdefghijklmnopqrstuvwxyz"[y],
-                            )
+                            sgfmod2 = f"\n(;{int2bw(c)}[{'abcdefghijklmnopqrstuvwxyz'[x]}{'abcdefghijklmnopqrstuvwxyz'[y]}]N[book]"
                         c1 = 3 - c
                         moves1 = moves[:-1] + [m]
                         while True:
@@ -1589,19 +1359,9 @@ def analysis_mode():
                             m1 = random.choice(mlist10)
                             x, y = str2xy(m1)
                             if mlist1[m1]:
-                                sgfmod2 += ";%s[%s%s]N[book %.1f]C[%.1f]" % (
-                                    int2bw(c1),
-                                    "abcdefghijklmnopqrstuvwxyz"[x],
-                                    "abcdefghijklmnopqrstuvwxyz"[y],
-                                    float(mlist1[m1][0]),
-                                    float(mlist1[m1][0]),
-                                )
+                                sgfmod2 += f";{int2bw(c1)}[{'abcdefghijklmnopqrstuvwxyz'[x]}{'abcdefghijklmnopqrstuvwxyz'[y]}]N[book {float(mlist1[m1][0]):.1f}]C[{float(mlist1[m1][0]):.1f}]"
                             else:
-                                sgfmod2 += ";%s[%s%s]N[book]" % (
-                                    int2bw(c1),
-                                    "abcdefghijklmnopqrstuvwxyz"[x],
-                                    "abcdefghijklmnopqrstuvwxyz"[y],
-                                )
+                                sgfmod2 += f";{int2bw(c1)}[{'abcdefghijklmnopqrstuvwxyz'[x]}{'abcdefghijklmnopqrstuvwxyz'[y]}]N[book]"
                             c1 = 3 - c1
                             moves1.append(m1)
                         sgfmod2 += ")"
@@ -1610,8 +1370,7 @@ def analysis_mode():
 
         if (
             len(moves) < rparm[0]
-            or [1 for i in range(len(moves)) if i % 2 == 1 and moves[i] != "PASS"]
-            == []
+            or [1 for i in range(len(moves)) if i % 2 == 1 and moves[i] != "PASS"] == []
         ):
             values.append(-1)
             if sm == "PASS":
@@ -1636,16 +1395,7 @@ def analysis_mode():
             amlist = zenAntiMove(c, zenGetPolicyKnowledge())
             s = "\n".join(
                 [
-                    "%s %s-> %8d,%s,%s, %.3f, %s"
-                    % (
-                        int2bw(c),
-                        item[5].split()[0].ljust(4),
-                        item[2],
-                        ("%.2f" % (item[6] * 100)).rjust(6),
-                        ("%.2f" % (item[3] * 100)).rjust(6),
-                        item[4] / 1000.0,
-                        item[5],
-                    )
+                    f"{int2bw(c)} {item[5].split()[0]:<4}-> {item[2]:>8}, {item[6]:>6.2%}, {item[3]:>6.2%}, {item[4] / 1000.0:.3f}, {item[5]}"
                     for item in amlist
                 ]
             )
@@ -1654,20 +1404,14 @@ def analysis_mode():
                 if amlist[0][5].split()[0] == "pass":
                     log(int2bw(c) + " pass" + "\n\n" + s + ";\n")
                 else:
-                    log(
-                        "%s pass (%s)\n\n%s;\n"
-                        % (int2bw(c), amlist[0][5].split()[0], s)
-                    )
+                    log(f"{int2bw(c)} pass ({amlist[0][5].split()[0]})\n\n{s};\n")
             else:
                 x, y = str2xy(sm)
                 zenPlay(x, y, c)
                 if amlist[0][5].split()[0] == sm:
                     log(int2bw(c) + " " + sm + "\n\n" + s + ";\n")
                 else:
-                    log(
-                        "%s %s (%s)\n\n%s;\n"
-                        % (int2bw(c), sm, amlist[0][5].split()[0], s)
-                    )
+                    log(f"{int2bw(c)} {sm} ({amlist[0][5].split()[0]})\n\n{s};\n")
             continue
 
         if len(moves) > 0 and len(moves) % Aparm[2] == 0:
@@ -1675,12 +1419,12 @@ def analysis_mode():
             for i in range(len(moves)):
                 if values[i] < 0:
                     continue
-                valueall += "%d, %.1f\n" % (i + 1, values[i])
+                valueall += f"{i + 1}, {values[i]:.1f}\n"
             valueall += "]"
             try:
                 sgfout = open(args[2], "w")
             except IOError:
-                show("Failed to open the sgf file %s." % args[2])
+                show(f"Failed to open the sgf file {args[2]}.")
                 sys.exit()
             sgfout.write(sgfheader + valueall + sgfmod + sgfmod1)
             sgfout.close()
@@ -1709,16 +1453,7 @@ def analysis_mode():
             continue
         s = "\n".join(
             [
-                "%s %s-> %8d,%s,%s, %.3f, %s"
-                % (
-                    int2bw(c),
-                    item[4].split()[0].ljust(4),
-                    item[2],
-                    ("%.2f" % (item[5] * 100)).rjust(6),
-                    ("%.2f" % (item[3] * 100)).rjust(6),
-                    item[9] / 1000.0,
-                    item[4],
-                )
+                f"{int2bw(c)} {item[4].split()[0]:<4}-> {item[2]:>8}, {item[5]:>6.2%}, {item[3]:>6.2%}, {item[9] / 1000.0:.3f}, {item[4]}"
                 for item in top
             ]
         )
@@ -1730,29 +1465,21 @@ def analysis_mode():
                 sgfmod += (
                     ";"
                     + int2bw(c)
-                    + "[]N[%.1f]C[%.1f]"
-                    % (
-                        top[0][3] * 100 if c == 2 else (100 - top[0][3] * 100),
-                        top[0][3] * 100 if c == 2 else (100 - top[0][3] * 100),
-                    )
+                    + f"[]N[{top[0][3] * 100 if c == 2 else (100 - top[0][3] * 100):.1f}]C[{top[0][3] * 100 if c == 2 else (100 - top[0][3] * 100):.1f}]"
                 )
             else:
-                log("%s pass (%s)\n\n%s;\n" % (int2bw(c), top[0][4].split()[0], s))
+                log(f"{int2bw(c)} pass ({top[0][4].split()[0]})\n\n{s};\n")
                 sgfmod += "\n(;" + int2bw(c) + "[]DO[]"
                 sgfmod2 = "\n("
                 pv = top[0][4].split()[:nparm]
                 for i in range(len(pv)):
                     if pv[i] == "pass":
-                        sgfmod2 += ";%s[]" % (int2bw(2 - (c + i) % 2))
+                        sgfmod2 += f";{int2bw(2 - (c + i) % 2)}[]"
                     else:
                         x, y = str2xy(pv[i])
-                        sgfmod2 += ";%s[%s%s]" % (
-                            int2bw(2 - (c + i) % 2),
-                            "abcdefghijklmnopqrstuvwxyz"[x],
-                            "abcdefghijklmnopqrstuvwxyz"[y],
-                        )
+                        sgfmod2 += f";{int2bw(2 - (c + i) % 2)}[{'abcdefghijklmnopqrstuvwxyz'[x]}{'abcdefghijklmnopqrstuvwxyz'[y]}]"
                     if i == 0:
-                        sgfmod2 += "N[%.1f]" % (top[0][3] * 100.0)
+                        sgfmod2 += f"N[{top[0][3] * 100.0:.1f}]"
                 sgfmod2 += ")"
                 sgfmod1 = ")" + sgfmod2 + sgfmod1
         else:
@@ -1766,14 +1493,10 @@ def analysis_mode():
                     + "["
                     + "abcdefghijklmnopqrstuvwxyz"[x]
                     + "abcdefghijklmnopqrstuvwxyz"[y]
-                    + "]N[%.1f]C[%.1f]"
-                    % (
-                        top[0][3] * 100.0 if c == 2 else (100 - top[0][3] * 100.0),
-                        top[0][3] * 100.0 if c == 2 else (100 - top[0][3] * 100.0),
-                    )
+                    + f"]N[{top[0][3] * 100.0 if c == 2 else (100 - top[0][3] * 100.0):.1f}]C[{top[0][3] * 100.0 if c == 2 else (100 - top[0][3] * 100.0):.1f}]"
                 )
             else:
-                log("%s %s (%s)\n\n%s;\n" % (int2bw(c), sm, top[0][4].split()[0], s))
+                log(f"{int2bw(c)} {sm} ({top[0][4].split()[0]})\n\n{s};\n")
                 sgfmod += (
                     "\n(;"
                     + int2bw(c)
@@ -1786,16 +1509,12 @@ def analysis_mode():
                 pv = top[0][4].split()[:nparm]
                 for i in range(len(pv)):
                     if pv[i] == "pass":
-                        sgfmod2 += ";%s[]" % (int2bw(2 - (c + i) % 2))
+                        sgfmod2 += f";{int2bw(2 - (c + i) % 2)}[]"
                     else:
                         x, y = str2xy(pv[i])
-                        sgfmod2 += ";%s[%s%s]" % (
-                            int2bw(2 - (c + i) % 2),
-                            "abcdefghijklmnopqrstuvwxyz"[x],
-                            "abcdefghijklmnopqrstuvwxyz"[y],
-                        )
+                        sgfmod2 += f";{int2bw(2 - (c + i) % 2)}[{'abcdefghijklmnopqrstuvwxyz'[x]}{'abcdefghijklmnopqrstuvwxyz'[y]}]"
                     if i == 0:
-                        sgfmod2 += "N[%.1f]" % (top[0][3] * 100.0)
+                        sgfmod2 += f"N[{top[0][3] * 100.0:.1f}]"
                 sgfmod2 += ")"
                 sgfmod1 = ")" + sgfmod2 + sgfmod1
         if vparm == 3:
@@ -1809,12 +1528,12 @@ def analysis_mode():
     for i in range(len(moves)):
         if values[i] < 0:
             continue
-        valueall += "%d, %.1f\n" % (i + 1, values[i])
+        valueall += f"{i + 1}, {values[i]:.1f}\n"
     valueall += "]"
     try:
         sgfout = open(args[2], "w")
     except IOError:
-        show("Failed to open the sgf file %s." % args[2])
+        show(f"Failed to open the sgf file {args[2]}.")
         sys.exit()
     sgfout.write(sgfheader + valueall + sgfmod + sgfmod1)
     sgfout.close()
@@ -1914,15 +1633,12 @@ def gtp_mode():
                 m = "" if mainpv == [] else mainpv[0]
                 values.append(-1)
                 zenPass(c)
-                log(
-                    int2bw(c)
-                    + " pass%s;" % ((" (%s)" % m) if m and m != "pass" else "")
-                )
+                log(int2bw(c) + f" pass{(f' ({m})') if m and m != 'pass' else ''};")
                 c = 3 - c
             m = "" if mainpv == [] else mainpv[0]
             values.append(-1)
             zenPass(c)
-            log(int2bw(c) + " pass%s;" % ((" (%s)" % m) if m and m != "pass" else ""))
+            log(int2bw(c) + f" pass{(f' ({m})') if m and m != 'pass' else ''};")
             continue
 
         if (
@@ -1939,10 +1655,7 @@ def gtp_mode():
                 m = "" if mainpv == [] else mainpv[0]
                 values.append(-1)
                 zenPass(c)
-                log(
-                    int2bw(c)
-                    + " pass%s;" % ((" (%s)" % m) if m and m != "pass" else "")
-                )
+                log(int2bw(c) + f" pass{(f' ({m})') if m and m != 'pass' else ''};")
                 c = 3 - c
             m = "" if mainpv == [] else mainpv[0]
             values.append(-1)
@@ -1951,7 +1664,7 @@ def gtp_mode():
                 int2bw(c)
                 + " "
                 + cmd[-1].upper()
-                + "%s;" % ((" (%s)" % m) if m and m != cmd[-1].upper() else "")
+                + f"{(f' ({m})') if m and m != cmd[-1].upper() else ''};"
             )
             continue
 
@@ -1965,10 +1678,7 @@ def gtp_mode():
                 m = "" if mainpv == [] else mainpv[0]
                 values.append(-1)
                 zenPass(c)
-                log(
-                    int2bw(c)
-                    + " pass%s;" % ((" (%s)" % m) if m and m != "pass" else "")
-                )
+                log(int2bw(c) + f" pass{(f' ({m})') if m and m != 'pass' else ''};")
                 c = 3 - c
             if len(moves) < bparm[0]:
                 mlist = zenGetBookMove(moves)
@@ -1998,9 +1708,7 @@ def gtp_mode():
                     )
                     reply(m1)
                     continue
-            #            show('afterbook=%d, Xparm=%d' % (afterbook,Xparm))
             afterbook += 1
-            #            show('afterbook=%d, Xparm=%d' % (afterbook,Xparm))
             if afterbook > Xparm:
                 reply("resign")
                 log(int2bw(c) + " resign;")
@@ -2046,16 +1754,7 @@ def gtp_mode():
                 amlist = zenAntiMove(c, k)
                 s = "\n".join(
                     [
-                        "%s %s-> %8d,%s,%s, %.3f, %s"
-                        % (
-                            int2bw(c),
-                            item[5].split()[0].ljust(4),
-                            item[2],
-                            ("%.2f" % (item[6] * 100)).rjust(6),
-                            ("%.2f" % (item[3] * 100)).rjust(6),
-                            item[4] / 1000.0,
-                            item[5],
-                        )
+                        f"{int2bw(c)} {item[5].split()[0]:<4}-> {item[2]:>8}, {item[6]:>6.2%}, {item[3]:>6.2%}, {item[4] / 1000.0:.3f}, {item[5]}"
                         for item in amlist
                     ]
                 )
@@ -2071,16 +1770,7 @@ def gtp_mode():
             if top:
                 s = "\n".join(
                     [
-                        "%s %s-> %8d,%s,%s, %.3f, %s"
-                        % (
-                            int2bw(c),
-                            item[4].split()[0].ljust(4),
-                            item[2],
-                            ("%.2f" % (item[5] * 100)).rjust(6),
-                            ("%.2f" % (item[3] * 100)).rjust(6),
-                            item[9] / 1000.0,
-                            item[4],
-                        )
+                        f"{int2bw(c)} {item[4].split()[0]:<4}-> {item[2]:>8}, {item[5]:>6.2%}, {item[3]:>6.2%}, {item[9] / 1000.0:.3f}, {item[4]}"
                         for item in top
                     ]
                 )
@@ -2128,7 +1818,7 @@ def gtp_mode():
                 int2bw(c)
                 + " "
                 + m
-                + (" (%s)" % top[0][4].split()[0] if top[0][4].split()[0] != m else "")
+                + (f" ({top[0][4].split()[0]})" if top[0][4].split()[0] != m else "")
                 + "\n\n"
                 + s
                 + ";\n"
@@ -2166,20 +1856,14 @@ def gtp_mode():
             for y in range(boardsize):
                 for x in range(boardsize):
                     if k[y][x] >= 100:
-                        s += "LABEL %s %d\n" % (xy2str(x, y), k[y][x])
+                        s += f"LABEL {xy2str(x, y)} {k[y][x]}\n"
                     points[max(0, k[y][x]) / 100].append(xy2str(x, y))
             reply(
                 "\n"
                 + s
                 + "\n".join(
                     [
-                        "COLOR #%02X%02X%02X %s"
-                        % (
-                            int(25.5 * (c - 1) * i + 12.8 * (10 - i)),
-                            int(25.5 * (2 - c) * i + 12.8 * (10 - i)),
-                            int(12.8 * (10 - i)),
-                            " ".join(points[i]),
-                        )
+                        f"COLOR #{int(25.5 * (c - 1) * i + 12.8 * (10 - i)):02X}{int(25.5 * (2 - c) * i + 12.8 * (10 - i)):02X}{int(12.8 * (10 - i)):02X} {' '.join(points[i])}"
                         for i in range(1, 11)
                         if points[i]
                     ]
@@ -2207,22 +1891,12 @@ def gtp_mode():
             s = ""
             for i in range(10):
                 if pointsB[i]:
-                    s += "COLOR #%02X%02X%02X %s\n" % (
-                        int(25.5 * (i + 1) + 12.8 * (9 - i)),
-                        int(0 * (i + 1) + 12.8 * (9 - i)),
-                        int(0 * (i + 1) + 12.8 * (9 - i)),
-                        " ".join(pointsB[i]),
-                    )
+                    s += f"COLOR #{int(25.5 * (i + 1) + 12.8 * (9 - i)):02X}{int(0 * (i + 1) + 12.8 * (9 - i)):02X}{int(0 * (i + 1) + 12.8 * (9 - i)):02X} {' '.join(pointsB[i])}\n"
                 if pointsW[i]:
-                    s += "COLOR #%02X%02X%02X %s\n" % (
-                        int(0 * (i + 1) + 12.8 * (9 - i)),
-                        int(25.5 * (i + 1) + 12.8 * (9 - i)),
-                        int(0 * (i + 1) + 12.8 * (9 - i)),
-                        " ".join(pointsW[i]),
-                    )
+                    s += f"COLOR #{int(0 * (i + 1) + 12.8 * (9 - i)):02X}{int(25.5 * (i + 1) + 12.8 * (9 - i)):02X}{int(0 * (i + 1) + 12.8 * (9 - i)):02X} {' '.join(pointsW[i])}\n"
             if pointsM:
-                s += "COLOR #%02X%02X%02X %s\n" % (128, 128, 128, " ".join(pointsM))
-            s += "TEXT %.1f" % (tsum / 1000.0 - komi[0])
+                s += f"COLOR #{128:02X}{128:02X}{128:02X} {' '.join(pointsM)}\n"
+            s += f"TEXT {tsum / 1000.0 - komi[0]:.1f}"
             reply("\n" + s.strip())
             continue
 
@@ -2241,17 +1915,11 @@ def gtp_mode():
                         labels.append(xy2str(x, y))
             reply(
                 "\n"
-                + "\n".join(["LABEL %s %s" % (item, item) for item in labels])
+                + "\n".join([f"LABEL {item} {item}" for item in labels])
                 + "\n"
                 + "\n".join(
                     [
-                        "COLOR #%02X%02X%02X %s"
-                        % (
-                            int(25.5 * (c - 1) * i + 12.8 * (10 - i)),
-                            int(25.5 * (2 - c) * i + 12.8 * (10 - i)),
-                            int(12.8 * (10 - i)),
-                            " ".join(points[i]),
-                        )
+                        f"COLOR #{int(25.5 * (c - 1) * i + 12.8 * (10 - i)):02X}{int(25.5 * (2 - c) * i + 12.8 * (10 - i)):02X}{int(12.8 * (10 - i)):02X} {' '.join(points[i])}"
                         for i in range(11)
                         if points[i]
                     ]

@@ -1,101 +1,19 @@
+from generalFunctions import *
 from ctypes import *
 import sys, os, time, getopt, random, subprocess, threading
 
 ##################################################
 
-name = "Zen6GTP"
-version = "0.5"
-program = name + "-" + version
-logfile = ""
-threads = int(os.environ["NUMBER_OF_PROCESSORS"])
+# 以下为 Zen6GTP 专用变量
 maxcount = 30000
 mincount = -1
 above = -1
-boardsize = 19
-komi = [7.5, -7.5]
-book = {
-    "19": ["Q16", "R16"],
-    "19 Q16": ["D16", "D4"],
-    "19 R16": ["D16", "D17", "D4", "Q4"],
-}
-prefix = {}
-moves = []
-weight = 0.5
-maxtime = 1000000000.0
 maxnum = 1000000000
 sparm = [0.25, 0.25]
 pwfactor = 1.1
 verbose = False
-qparm = 200
 
-##################################################
-
-
-def reply(s):
-    sys.stdout.write("= " + s + "\n\n")
-    sys.stdout.flush()
-
-
-def show(s):
-    sys.stderr.write(s + "\n")
-    sys.stderr.flush()
-
-
-def log(s):
-    if logfile != "":
-        output.write("[%03d] %s\n" % (len(moves), s))
-        output.flush()
-
-
-def xy2str(x, y):
-    return "ABCDEFGHJKLMNOPQRSTUVWXYZ"[x] + str(boardsize - y)
-
-
-def str2xy(m):
-    return "ABCDEFGHJKLMNOPQRSTUVWXYZ".find(m[0].upper()), boardsize - int(m[1:])
-
-
-def bw2int(s):
-    return 1 if s in ["W", "w"] else 2
-
-
-def int2bw(c):
-    return "W" if c == 1 else "B"
-
-
-def transform(m, n):
-    if m == "PASS":
-        return "PASS"
-    x, y = str2xy(m)
-    if n == 0:
-        return m
-    if n == 1 or n == -1:
-        return xy2str(x, boardsize - 1 - y)
-    if n == 2 or n == -2:
-        return xy2str(boardsize - 1 - x, y)
-    if n == 3 or n == -3:
-        return xy2str(boardsize - 1 - x, boardsize - 1 - y)
-    if n == 4 or n == -4:
-        return xy2str(y, x)
-    if n == 5 or n == -6:
-        return xy2str(boardsize - 1 - y, x)
-    if n == 6 or n == -5:
-        return xy2str(y, boardsize - 1 - x)
-    if n == 7 or n == -7:
-        return xy2str(boardsize - 1 - y, boardsize - 1 - x)
-
-
-def help():
-    show("Allowed options:")
-    show(" -h [ --help ]".ljust(25) + "Show all allowed options.")
-    show(" -t [ --threads ] num".ljust(25) + "Set the number of threads to use. (1)")
-    show(" -T [ --maxtime ] num".ljust(25) + "Set the max time for one move.")
-    show(
-        " -M [ --maxcount ] num".ljust(25) + "Set the max count for top moves. (30000)"
-    )
-    show(" -m [ --mincount ] num".ljust(25) + "Set the min count for good moves.")
-    show(" -l [ --logfile ] file".ljust(25) + "Enable logging and set the log file.")
-    sys.exit()
+################################################
 
 
 try:
@@ -171,10 +89,7 @@ if above >= mincount:
 if above == -1:
     above = int(mincount * 0.05)
 
-dirname = os.path.dirname(sys.argv[0])
-dirname += "\\" if dirname and dirname[-1] != "\\" else ""
-
-# 以下将 log 置于 logs 文件夹内的方法来自 Zen7GTP
+# 以下将 log 置于 logs 文件夹内的方法来自 Zen7GTP，很奇怪不能抽离
 if logfile == "":
     if os.path.exists(dirname + "logs"):
         if not os.path.isdir(dirname + "logs"):
@@ -193,68 +108,14 @@ except IOError:
 output.write("=== " + program + " ===\n\n")
 output.flush()
 
-if os.path.exists(dirname + "book.dat"):
-    try:
-        data = open(dirname + "book.dat", "r")
-    except IOError:
-        show("Failed to open the book file.")
-        sys.exit()
-    while True:
-        line = data.readline()
-        if line == "":
-            break
-        line = line.strip()
-        if line == "" or line[0] == "#":
-            continue
-        l = line.split("|")
-        if len(l) > 2:
-            continue
-        if len(l) == 2:
-            game, move = l[0].strip(), l[1].strip()
-            g = game.split()
-            m = move.split()
-            if g[0].isdigit():
-                for mm in m:
-                    if game in book:
-                        if not mm in book[game]:
-                            book[game].append(mm)
-                    else:
-                        book[game] = [mm]
-            else:
-                if g[0] in prefix:
-                    for g0 in prefix[g[0]]:
-                        g1 = ("%s %s" % (g0, " ".join(g[1:]))).strip()
-                        for mm in m:
-                            if g1 in book:
-                                if not mm in book[g1]:
-                                    book[g1].append(mm)
-                            else:
-                                book[g1] = [mm]
-            continue
-        l = line.split(":")
-        if len(l) != 2:
-            continue
-        ngame, game = l[0].strip(), l[1].strip()
-        if len(ngame.split()) > 1:
-            continue
-        g = game.split()
-        if g[0].isdigit():
-            if ngame in prefix:
-                if not game in prefix[ngame]:
-                    prefix[ngame].append(game)
-            else:
-                prefix[ngame] = [game]
-        else:
-            if g[0] in prefix:
-                for g0 in prefix[g[0]]:
-                    g1 = ("%s %s" % (g0, " ".join(g[1:]))).strip()
-                    if ngame in prefix:
-                        if not g1 in prefix[ngame]:
-                            prefix[ngame].append(g1)
-                    else:
-                        prefix[ngame] = [g1]
-    data.close()
 
+def log(s):
+    if logfile != "":
+        output.write(f"[{len(moves):03}] {s}\n")
+        output.flush()
+
+
+isBookDatExist(dirname)
 
 try:
     zen = CDLL(dirname + "Zen.dll")
@@ -345,7 +206,7 @@ def zenGetNetWin(c, l):
             for yy in range(boardsize):
                 for xx in range(boardsize):
                     if (xx != x or yy != y) and kk[yy][xx] > 500:
-                        leela.stdin.write("play %s %s\n" % (int2bw(c), xy2str(xx, yy)))
+                        leela.stdin.write(f"play {int2bw(c)} {xy2str(xx, yy)}\n")
                         leela.stdin.flush()
                         leela.stdout.readline()
                         leela.stdout.readline()
@@ -358,7 +219,7 @@ def zenGetNetWin(c, l):
                         leela.stdout.readline()
                         leela.stdout.readline()
         vn2.append(v)
-        leela.stdin.write("play %s %s\n" % (int2bw(c), l[i]))
+        leela.stdin.write(f"play {int2bw(c)} {l[i]}\n")
         leela.stdin.flush()
         leela.stdout.readline()
         leela.stdout.readline()
@@ -394,7 +255,7 @@ def zenGetNetWin2(c, m):
     global vncache
     if m in vncache:
         return vncache[m]
-    leela.stdin.write("play %s %s\n" % (int2bw(c), m))
+    leela.stdin.write(f"play {int2bw(c)} {m}\n")
     leela.stdin.flush()
     leela.stdout.readline()
     leela.stdout.readline()
@@ -421,7 +282,7 @@ def zenGetNetWin2(c, m):
 def zenPass(c):
     moves.append("PASS")
     zen[19](c)
-    leela.stdin.write("play %s PASS\n" % int2bw(c))
+    leela.stdin.write(f"play {int2bw(c)} PASS\n")
     leela.stdin.flush()
     leela.stdout.readline()
     leela.stdout.readline()
@@ -430,7 +291,7 @@ def zenPass(c):
 def zenPlay(x, y, c):
     moves.append(xy2str(x, y))
     zen[20](x, y, c)
-    leela.stdin.write("play %s %s\n" % (int2bw(c), xy2str(x, y)))
+    leela.stdin.write(f"play {int2bw(c)} {xy2str(x, y)}\n")
     leela.stdin.flush()
     leela.stdout.readline()
     leela.stdout.readline()
@@ -438,7 +299,7 @@ def zenPlay(x, y, c):
 
 def zenSetBoardSize(n):
     zen[23](n)
-    leela.stdin.write("boardsize %s\n" % str(n))
+    leela.stdin.write(f"boardsize {str(n)}\n")
     leela.stdin.flush()
     leela.stdout.readline()
     leela.stdout.readline()
@@ -446,7 +307,7 @@ def zenSetBoardSize(n):
 
 def zenSetKomi(k1, k2):
     zen[25](c_float(k1 + k2))
-    leela.stdin.write("komi %s\n" % str(k1))
+    leela.stdin.write(f"komi {str(k1)}\n")
     leela.stdin.flush()
     leela.stdout.readline()
     leela.stdout.readline()
@@ -536,23 +397,11 @@ def zenGenMove(c, k, a):
 
         if topB and topB != topA:
             topA = topB
-            show(
+            show(  # GTP Shell
                 "\n"
                 + "\n".join(
                     [
-                        "   %s %s[%s] -> %8d [%s],%s%% [%s],%s%%, %.3f, %s"
-                        % (
-                            int2bw(c),
-                            itemB[4].split()[0].ljust(4),
-                            itemB[5],
-                            itemB[2],
-                            itemB[6],
-                            ("%.2f" % (itemB[3] * 100)).rjust(6),
-                            itemB[7],
-                            ("%.2f" % (itemB[9] * 100)).rjust(6),
-                            itemB[8] / 1000.0,
-                            itemB[4],
-                        )
+                        f"   {int2bw(c)} {itemB[4].split()[0]:<4}[{itemB[5]}] -> {itemB[2]:>8} [{itemB[6]}], {itemB[3]:>6.2%} [{itemB[7]}], {itemB[9]:>6.2%}, {itemB[8] / 1000.0:.3f}, {itemB[4]}"
                         for itemB in topB
                     ]
                 )
@@ -577,8 +426,7 @@ def zenGenMove(c, k, a):
     show("")
     if zenIsThinking() != -0x80000000:
         show(
-            "   Komi:       %.1f %s %.1f"
-            % (komi[0], "+" if dykomi * (2 * c - 3) >= 0 else "-", abs(dykomi))
+            f"   Komi:       {komi[0]:.1f} {'+' if dykomi * (2 * c - 3) >= 0 else '-'} {abs(dykomi):.1f}"
         )
         zenStopThinking()
         show("")
@@ -763,16 +611,7 @@ while True:
         if top:
             s = "\n".join(
                 [
-                    "%s %s-> %8d,%s%%,%s%%, %.3f, %s"
-                    % (
-                        int2bw(c),
-                        item[4].split()[0].ljust(4),
-                        item[2],
-                        ("%.2f" % (item[3] * 100)).rjust(6),
-                        ("%.2f" % (item[9] * 100)).rjust(6),
-                        item[8] / 1000.0,
-                        item[4],
-                    )
+                    f"{int2bw(c)} {item[4].split()[0]:<4}-> {item[2]:>8},{item[3]:>6.2%},{item[9]:>6.2%}, {item[8] / 1000.0:.3f}, {item[4]}"
                     for item in top
                 ]
             )
@@ -802,22 +641,9 @@ while True:
                 win = (mcwin * weight) + (netwin * (1 - weight))
                 wins.append(win)
                 show(
-                    "   %s %s: %s%% (MC:%s%%, VN:%s%%)"
-                    % (
-                        int2bw(c),
-                        item[4].split()[0].ljust(3),
-                        ("%.2f" % (win * 100)).rjust(6),
-                        ("%.2f" % (mcwin * 100)).rjust(6),
-                        ("%.2f" % (netwin * 100)).rjust(6),
-                    )
+                    f"   {int2bw(c)} {item[4].split()[0]:<3}: { win:>6.2%} (MC:{ mcwin:>6.2%}, VN:{ netwin:>6.2%})"
                 )
-                s += "\n%s %s: %s%% (MC:%s%%, VN:%s%%)" % (
-                    int2bw(c),
-                    item[4].split()[0].ljust(3),
-                    ("%.2f" % (win * 100)).rjust(6),
-                    ("%.2f" % (mcwin * 100)).rjust(6),
-                    ("%.2f" % (netwin * 100)).rjust(6),
-                )
+                s += f"\n{int2bw(c)} {item[4].split()[0]:<3}: { win:>6.2%} (MC:{ mcwin:>6.2%}, VN:{ netwin:>6.2%})"
             l = wins.index(max(wins))
             show("")
         m = good[l][4].split()[0]
@@ -858,7 +684,7 @@ while True:
             for x in range(boardsize):
                 points[max(0, k[y][x]) / 100].append(xy2str(x, y))
                 if k[y][x] > 200:
-                    leela.stdin.write("play %s %s\n" % (int2bw(c), xy2str(x, y)))
+                    leela.stdin.write(f"play {int2bw(c)} {xy2str(x, y)}\n")
                     leela.stdin.flush()
                     leela.stdout.readline()
                     leela.stdout.readline()
@@ -876,19 +702,13 @@ while True:
             "\n"
             + "\n".join(
                 [
-                    "COLOR #%02X%02X%02X %s"
-                    % (
-                        int(25.5 * (c - 1) * i + 12.8 * (10 - i)),
-                        int(25.5 * (2 - c) * i + 12.8 * (10 - i)),
-                        int(12.8 * (10 - i)),
-                        " ".join(points[i]),
-                    )
+                    f"COLOR #{int(25.5 * (c - 1) * i + 12.8 * (10 - i)):02X}{int(25.5 * (2 - c) * i + 12.8 * (10 - i)):02X}{int(12.8 * (10 - i)):02X} {' '.join(points[i])}"
                     for i in range(11)
                     if points[i]
                 ]
             )
             + "\n"
-            + "\n".join(["LABEL %s %.1f" % (item[0], item[1] * 100) for item in values])
+            + "\n".join([f"LABEL {item[0]} {item[1] * 100:.1f}" for item in values])
         )
         continue
 
@@ -912,22 +732,12 @@ while True:
         s = ""
         for i in range(10):
             if pointsB[i]:
-                s += "COLOR #%02X%02X%02X %s\n" % (
-                    int(25.5 * (i + 1) + 12.8 * (9 - i)),
-                    int(0 * (i + 1) + 12.8 * (9 - i)),
-                    int(0 * (i + 1) + 12.8 * (9 - i)),
-                    " ".join(pointsB[i]),
-                )
+                s += f"COLOR #{int(25.5 * (i + 1) + 12.8 * (9 - i)):02X}{int(0 * (i + 1) + 12.8 * (9 - i)):02X}{int(0 * (i + 1) + 12.8 * (9 - i)):02X} {' '.join(pointsB[i])}\n"
             if pointsW[i]:
-                s += "COLOR #%02X%02X%02X %s\n" % (
-                    int(0 * (i + 1) + 12.8 * (9 - i)),
-                    int(25.5 * (i + 1) + 12.8 * (9 - i)),
-                    int(0 * (i + 1) + 12.8 * (9 - i)),
-                    " ".join(pointsW[i]),
-                )
+                s += f"COLOR #{int(0 * (i + 1) + 12.8 * (9 - i)):02X}{int(25.5 * (i + 1) + 12.8 * (9 - i)):02X}{int(0 * (i + 1) + 12.8 * (9 - i)):02X} {' '.join(pointsW[i])}\n"
         if pointsM:
-            s += "COLOR #%02X%02X%02X %s\n" % (128, 128, 128, " ".join(pointsM))
-        s += "TEXT %.1f" % (sum / 1000.0 - komi[0])
+            s += f"COLOR #{128:02X}{128:02X}{128:02X} {' '.join(pointsM)}\n"
+        s += f"TEXT {sum / 1000.0 - komi[0]:.1f}"
         reply("\n" + s.strip())
         continue
 
@@ -948,19 +758,13 @@ while True:
             "\n"
             + "\n".join(
                 [
-                    "COLOR #%02X%02X%02X %s"
-                    % (
-                        int(25.5 * (c - 1) * i + 12.8 * (10 - i)),
-                        int(25.5 * (2 - c) * i + 12.8 * (10 - i)),
-                        int(12.8 * (10 - i)),
-                        " ".join(points[i]),
-                    )
+                    f"COLOR #{int(25.5 * (c - 1) * i + 12.8 * (10 - i)):02X}{int(25.5 * (2 - c) * i + 12.8 * (10 - i)):02X}{int(12.8 * (10 - i)):02X} {' '.join(points[i])}"
                     for i in range(11)
                     if points[i]
                 ]
             )
             + "\n"
-            + "\n".join(["LABEL %s %s" % (item, item) for item in labels])
+            + "\n".join([f"LABEL {item} {item}" for item in labels])
         )
 
         th = threading.Thread(target=zenGenMove, args=(c, k, 1))
