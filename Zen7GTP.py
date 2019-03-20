@@ -4,11 +4,15 @@ import subprocess, threading
 import win32api, win32process, win32con, win32gui
 import wx, sgf
 
+# pip install PyInstaller pywin32 wxPython sgf -i https://pypi.doubanio.com/simple
+
 ##################################################
 
-name = os.path.basename(sys.argv[0]).split(".")[0].split("-")[0]
-version = "0.1"
-program = (os.path.basename(sys.argv[0]) + " " + " ".join(sys.argv[1:])).strip()
+# name = os.path.basename(sys.argv[0]).split(".")[0].split("-")[0]
+name = "Zen7GTP"
+version = "0.1.1"
+# program = (os.path.basename(sys.argv[0]) + " " + " ".join(sys.argv[1:])).strip()
+program = name + "-" + version
 logfile = ""
 threads = int(os.environ["NUMBER_OF_PROCESSORS"])
 boardsize = 19
@@ -20,7 +24,8 @@ moves = []
 values = []
 mainpv = []
 maxtime = 1000000000.0
-Strength = [1000000000, 10000]
+# Strength = [1000000000, 10000] # 原默认参数 = -S 10000+
+Strength = [10000, 1000000000]  #  新默认参数 = -S 10000
 strength = [1000000000, 1000000000, 10000]
 fparm = [3, 1.0]
 weight = [0.75, 0.75]
@@ -33,7 +38,7 @@ Xparm = 1000000000
 gparm = [500, 0]
 pparm = 2
 uparm = 0
-vparm = 1
+vparm = 0  # 默认关闭控制台
 nparm = 10
 Aparm = [1, 1000000000, 1000000000]
 aparm = [0, 100]
@@ -284,14 +289,7 @@ if logfile == "":
             os.mkdir(dirname + "logs")
         except WindowsError:
             help()
-    logfile = (
-        dirname
-        + "logs\\"
-        + time.strftime("%Y%m%d%H%M")
-        + "-"
-        + "%03d" % random.randint(0, 999)
-        + ".log"
-    )
+    logfile = dirname + "logs\\" + time.strftime("%Y%m%d-%H%M%S") + ".log"
 
 try:
     output = open(logfile, "w")
@@ -751,10 +749,10 @@ def zenPlay(x, y, c):
 
 
 # def zenSetBoardSize(n):
-# 	zen[22](n)
+#    zen[22](n)
 
 # def zenSetKomi(k1, k2):
-# 	zen[23](c_float(k1 + k2))
+#    zen[23](c_float(k1 + k2))
 
 
 def zenUndo(n):
@@ -850,12 +848,12 @@ def zenAntiMove(c, k):
         show("* play " + int2bw(c) + " " + m)
         zenStartThinking(3 - c)
         if vparm:
-            # 			show('')
+            #            show('')
             listctrl.InsertStringItem(0, int2bw(c) + " " + m)
             listctrl.SetStringItem(0, 4, "%.3f" % (k[y][x] / 1000.0))
             listctrl.SetStringItem(0, 5, m)
-        # 			selected = listctrl.GetFirstSelected()
-        # 			if selected >= 0: listctrl.Select(selected + 1)
+        #            selected = listctrl.GetFirstSelected()
+        #            if selected >= 0: listctrl.Select(selected + 1)
         p0, w0, s0, e0 = 0, 0, "", 0
         while True:
             time.sleep(1.0)
@@ -1005,7 +1003,7 @@ def zenGenMove(c, k, a):
             x, y, p, w, s, e = zenGetTopMoveInfo(n)
             if p == 0:
                 break
-            # 			w = max(0.0, min(1.0, w + dykomi/100.0))
+            #            w = max(0.0, min(1.0, w + dykomi/100.0))
             if [x, y] in xylistA:
                 m = xylistA.index([x, y])
                 topB.append(
@@ -1117,9 +1115,9 @@ def zenGenMove(c, k, a):
                 ):
                     selected = [itemB[:2] for itemB in topB].index(topA[selected][:2])
                     listctrl.Select(selected)
-                # 				elif selected == len(topA) and selected < len(topB):
-                # 					selected = len(topB)
-                # 					listctrl.Select(selected)
+                #                elif selected == len(topA) and selected < len(topB):
+                #                    selected = len(topB)
+                #                    listctrl.Select(selected)
                 if selected < len(topB):
                     sqB = topB[max(0, selected)][4].split()[:nparm]
                     pvB = [
@@ -1220,8 +1218,8 @@ def zenGenMove(c, k, a):
             frame.SetTitle("Move %s (%s)" % (len(moves) + 1, program))
         if topA == []:
             listctrl.InsertStringItem(0, int2bw(c) + " " + "pass")
-            # 			listctrl.SetStringItem(0, 1, '? ?')
-            # 			listctrl.SetStringItem(0, 2, '? ?')
+            #            listctrl.SetStringItem(0, 1, '? ?')
+            #            listctrl.SetStringItem(0, 2, '? ?')
             listctrl.SetStringItem(0, 4, "0.000")
             listctrl.SetStringItem(0, 5, "pass")
 
@@ -1231,7 +1229,7 @@ def zenGenMove(c, k, a):
             "   Komi:       %.1f %s %.1f"
             % (komi[0], "+" if dykomi * (2 * c - 3) >= 0 else "-", abs(dykomi))
         )
-        # 		show('   Prisoners:  Black %d, White %d' % (zenGetNumBlackPrisoners(), zenGetNumWhitePrisoners()))
+        #        show('   Prisoners:  Black %d, White %d' % (zenGetNumBlackPrisoners(), zenGetNumWhitePrisoners()))
         zenStopThinking()
         show(" ")
 
@@ -1382,10 +1380,10 @@ def analysis_mode():
     except IOError:
         show("Failed to open the sgf file %s." % args[1])
         sys.exit()
-    # 	try: sgfout = open(args[2], 'w')
-    # 	except IOError:
-    # 		show('Failed to open the sgf file %s.' % args[2])
-    # 		sys.exit()
+    #    try: sgfout = open(args[2], 'w')
+    #    except IOError:
+    #        show('Failed to open the sgf file %s.' % args[2])
+    #        sys.exit()
     try:
         gt = sgf.parse(sgffile.read())[0]
     except sgf.ParseException:
@@ -1908,7 +1906,7 @@ def gtp_mode():
         if cmd[:-1] == ["gg-undo"] and cmd[-1].isdigit() and len(moves) >= int(cmd[-1]):
             reply("")
             zenUndo(int(cmd[-1]))
-            # 			afterbook = max(afterbook - 1, 0)
+            #            afterbook = max(afterbook - 1, 0)
             continue
 
         if cmd in [["play", "w", "pass"], ["play", "b", "pass"]]:
@@ -2002,9 +2000,9 @@ def gtp_mode():
                     )
                     reply(m1)
                     continue
-            # 			show('afterbook=%d, Xparm=%d' % (afterbook,Xparm))
+            #            show('afterbook=%d, Xparm=%d' % (afterbook,Xparm))
             afterbook += 1
-            # 			show('afterbook=%d, Xparm=%d' % (afterbook,Xparm))
+            #            show('afterbook=%d, Xparm=%d' % (afterbook,Xparm))
             if afterbook > Xparm:
                 reply("resign")
                 log(int2bw(c) + " resign;")

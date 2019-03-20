@@ -1,13 +1,14 @@
 from ctypes import *
-import sys, os, time, getopt, random, subprocess, threading, multiprocessing
+import sys, os, time, getopt, random, subprocess, threading
 
 ##################################################
 
-name = "Zen6"
-version = "0.4"
-logfile = time.strftime("%Y%m%d%H%M") + "-" + "%03d" % random.randint(0, 999) + ".log"
-# threads = 1
-threads = multiprocessing.cpu_count()
+name = "Zen6GTP"
+version = "0.4.3"
+# program = (os.path.basename(sys.argv[0]) + " " + " ".join(sys.argv[1:])).strip()
+program = name + "-" + version
+logfile = ""
+threads = int(os.environ["NUMBER_OF_PROCESSORS"])
 maxcount = 30000
 mincount = -1
 above = -1
@@ -171,22 +172,27 @@ if above >= mincount:
 if above == -1:
     above = int(mincount * 0.05)
 
-if logfile != "":
-    try:
-        output = open(logfile, "w")
-    except IOError:
-        help()
-    output.write(
-        "=== "
-        + os.path.basename(sys.argv[0])
-        + " "
-        + " ".join(sys.argv[1:])
-        + " ===\n\n"
-    )
-    output.flush()
-
 dirname = os.path.dirname(sys.argv[0])
 dirname += "\\" if dirname and dirname[-1] != "\\" else ""
+
+# 以下将 log 置于 logs 文件夹内的方法来自 Zen7GTP
+if logfile == "":
+    if os.path.exists(dirname + "logs"):
+        if not os.path.isdir(dirname + "logs"):
+            help()
+    else:
+        try:
+            os.mkdir(dirname + "logs")
+        except WindowsError:
+            help()
+    logfile = dirname + "logs\\" + time.strftime("%Y%m%d-%H%M%S") + ".log"
+
+try:
+    output = open(logfile, "w")
+except IOError:
+    help()
+output.write("=== " + program + " ===\n\n")
+output.flush()
 
 if os.path.exists(dirname + "book.dat"):
     try:
@@ -406,11 +412,11 @@ def zenGetNetWin2(c, m):
 
 
 # def zenInitialize():
-# 	zen[13]('')
-# 	leela.stdin.write('time_settings 0 3600000 1\n')
-# 		leela.stdin.flush()
-# 		leela.stdout.readline()
-# 		leela.stdout.readline()
+#    zen[13]('')
+#    leela.stdin.write('time_settings 0 3600000 1\n')
+#        leela.stdin.flush()
+#        leela.stdout.readline()
+#        leela.stdout.readline()
 
 
 def zenPass(c):
