@@ -10,7 +10,7 @@ pyinstaller = "*"
 pywin32 = "*"
 wxpython = "*"
 sgf = "*"
-black = "*"
+yapf = "*"
 
 [requires]
 python_version = "3.7"

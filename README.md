@@ -10,7 +10,7 @@
 
 - 兼容 Python3；
 - 使用 `pipenv` 管理依赖；
-- 使用 `black` 工具格式化；注：如遇到 `pipenv` 因 `black` 无法 `lock` 的问题，可尝试 `pipenv lock --pre`
+- 使用 `yapf` 工具格式化；注：如遇到 `pipenv` 无法 `lock` 的问题，可尝试 `pipenv lock --pre`
 - 将 `log` 文件名规范格式化为 `.\logs\年月日-时分秒.log`；
 - 增加注释；
 - 刷版本号。
