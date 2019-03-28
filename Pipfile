@@ -4,13 +4,14 @@ url = "https://pypi.doubanio.com/simple"
 verify_ssl = true
 
 [dev-packages]
+yapf = "*"
+v = {editable = true,version = "*"}
 
 [packages]
 pyinstaller = "*"
 pywin32 = "*"
 wxpython = "*"
 sgf = "*"
-yapf = "*"
 
 [requires]
 python_version = "3.7"
