@@ -390,10 +390,9 @@ def zenGenMove(c, k, a):
                                    f'{itemB[4]}') for itemB in topB]))
             if (a == 0 and
                 (topB[0][2] > maxcount or time.time() - time0 + 1.0 > maxtime or
-                 (topB[0][2] >= mincount
-                  and max([itemB[2]
-                           for itemB in topB[1:] if itemB[2] < mincount] + [0]) < above))) or (
-                               a == 1 and stopThinking):
+                 (topB[0][2] >= mincount and max([itemB[2]
+                                                  for itemB in topB[1:] if itemB[2] < mincount] + [0]) < above))) or (
+                                                      a == 1 and stopThinking):
                 break
 
     show('')
@@ -543,9 +542,8 @@ while True:
             x, y = str2xy(m1)
             zenPlay(x, y, c)
             log(
-                int2bw(c) + ' ' + m1 + '\n\n' +
-                (str(boardsize) + ' ' + ' '.join(moves[:-1])).strip() + ' | ' + ' '.join(mlist) +
-                ';\n')
+                int2bw(c) + ' ' + m1 + '\n\n' + (str(boardsize) + ' ' + ' '.join(moves[:-1])).strip() + ' | ' +
+                ' '.join(mlist) + ';\n')
             reply(m1)
             continue
         xylist = [[x, y] for y in range(boardsize) for x in range(boardsize) if k[y][x] >= qparm]
@@ -568,8 +566,8 @@ while True:
             if top[0][4].split()[0].lower() != 'pass':
                 ispass = False
                 good = [
-                    item for item in top if item[2] * maxcount >= top[0][2] * mincount
-                    and item[3] > 0.1 and item[4].split()[0].lower() != 'pass'
+                    item for item in top if item[2] * maxcount >= top[0][2] *
+                    mincount and item[3] > 0.1 and item[4].split()[0].lower() != 'pass'
                 ][0:maxnum]
         if ispass == True:
             reply('pass')
@@ -644,8 +642,8 @@ while True:
                                  f'{int(25.5 * (c - 1) * i + 12.8 * (10 - i)):02X}'
                                  f'{int(25.5 * (2 - c) * i + 12.8 * (10 - i)):02X}'
                                  f'{int(12.8 * (10 - i)):02X} '
-                                 f'{" ".join(points[i])}') for i in range(11) if points[i]]) +
-              '\n' + '\n'.join([f'LABEL {item[0]} {item[1] * 100:.1f}' for item in values]))
+                                 f'{" ".join(points[i])}') for i in range(11) if points[i]]) + '\n' +
+              '\n'.join([f'LABEL {item[0]} {item[1] * 100:.1f}' for item in values]))
         continue
 
     if cmd == ['territory_statictics']:
@@ -702,8 +700,8 @@ while True:
                                  f'{int(25.5 * (c - 1) * i + 12.8 * (10 - i)):02X}'
                                  f'{int(25.5 * (2 - c) * i + 12.8 * (10 - i)):02X}'
                                  f'{int(12.8 * (10 - i)):02X} '
-                                 f'{" ".join(points[i])}') for i in range(11) if points[i]]) +
-              '\n' + '\n'.join([f'LABEL {item} {item}' for item in labels]))
+                                 f'{" ".join(points[i])}') for i in range(11) if points[i]]) + '\n' +
+              '\n'.join([f'LABEL {item} {item}' for item in labels]))
 
         th = threading.Thread(target=zenGenMove, args=(c, k, 1))
         th.setDaemon(True)
