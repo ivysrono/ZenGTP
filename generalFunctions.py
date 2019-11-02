@@ -1,7 +1,7 @@
 import os, sys
 
 name = os.path.basename(sys.argv[0]).split('.')[0].split('-')[0]  # 获取生成的 exe 文件名并处理
-version = 'Py372'
+version = 'Py375'
 program = name + '-' + version
 logfile = ''
 threads = int(os.environ['NUMBER_OF_PROCESSORS'])

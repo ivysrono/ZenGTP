@@ -4,11 +4,10 @@ url = "https://pypi.doubanio.com/simple"
 verify_ssl = true
 
 [dev-packages]
+pyinstaller = "*"
 yapf = "*"
-v = {editable = true,version = "*"}
 
 [packages]
-pyinstaller = "*"
 pywin32 = "*"
 wxpython = "*"
 sgf = "*"
