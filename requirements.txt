@@ -1,0 +1,4 @@
+PyInstaller
+pywin32
+sgf
+wxPython
