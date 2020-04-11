@@ -8,5 +8,5 @@ Else
 End If
 
 ws.Run ".\.venv\Scripts\pip install -r requirements.txt", 1, true
-ws.Run ".\.venv\Scripts\pyinstaller -F Zen6GTP.py --distpath=./dist/6 --specpath=./spec", 1, false
+ws.Run ".\.venv\Scripts\pyinstaller -F Zen6GTP.py --distpath=./dist/6 --specpath=./spec", 1, true
 ws.Run ".\.venv\Scripts\pyinstaller -F Zen7GTP.py --distpath=./dist/7 --specpath=./spec", 1, false
